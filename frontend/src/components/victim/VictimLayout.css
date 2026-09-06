@@ -1,0 +1,250 @@
+.victim-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f3f4f6; /* Light gray background matching screenshot */
+  color: #1f2937;
+}
+
+/* TOP HEADER */
+.victim-navbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 1.5rem;
+  height: 64px; /* Fixed height matching reference */
+  background-color: #1a1a47; /* Deep navy/purple */
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none; /* Removed unnecessary shadows */
+  z-index: 10;
+  width: 100vw;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-self: flex-start;
+}
+
+.navbar-logo {
+  width: 36px;
+  height: auto;
+  object-fit: contain;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.brand-title {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.brand-subtitle {
+  font-size: 0.8rem;
+  color: #e2e8f0;
+}
+
+.navbar-center {
+  text-align: center;
+  justify-self: center;
+}
+
+.navbar-center h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-self: flex-end;
+}
+
+.user-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-svg {
+  width: 100%;
+  height: 100%;
+  color: #ffffff;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.logged-in-text {
+  font-size: 0.75rem;
+  color: #e2e8f0;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* SIDEBAR & BODY */
+.victim-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.victim-sidebar {
+  width: 260px;
+  background-color: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  padding: 1.5rem 0;
+  overflow-y: auto;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.02);
+}
+
+.sidebar-heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+  padding: 0 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.victim-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: flex-start; /* Ensure icon aligns with top of text */
+  padding: 0.875rem 1.5rem;
+  color: #4b5563;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+  border-left: 4px solid transparent;
+}
+
+.nav-item:hover {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+.nav-item.active {
+  background-color: #f3f4f6;
+  color: #21215b; /* Match header */
+  border-left-color: #21215b;
+}
+
+.nav-icon {
+  font-size: 1.25rem;
+  margin-right: 1rem;
+  width: 24px;
+  text-align: center;
+  margin-top: 0.1rem; /* Adjust icon alignment slightly for the stacked text */
+}
+
+.nav-text-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-label-primary {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.nav-label-secondary {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #6b7280;
+  margin-top: 0.2rem;
+}
+
+.victim-main-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  background-color: #f9fafb; /* Light white-gray for main content */
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .navbar-left .brand-subtitle, 
+  .navbar-right .logged-in-text {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .victim-navbar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    height: auto;
+    text-align: center;
+  }
+  
+  .navbar-left, .navbar-center, .navbar-right {
+    justify-self: center;
+    justify-content: center;
+  }
+  
+  .victim-body {
+    flex-direction: column;
+  }
+  
+  .victim-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 0;
+  }
+  
+  .sidebar-heading {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .victim-nav-list {
+    display: flex;
+    overflow-x: auto;
+    padding: 0 1rem;
+  }
+  
+  .nav-item {
+    border-left: none;
+    border-bottom: 4px solid transparent;
+    padding: 0.5rem 1rem;
+    white-space: nowrap;
+  }
+  
+  .nav-item.active {
+    border-left-color: transparent;
+    border-bottom-color: #21215b;
+  }
+  
+  .victim-main-content {
+    padding: 1rem;
+  }
+}

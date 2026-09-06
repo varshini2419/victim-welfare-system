@@ -1,0 +1,15 @@
+{
+  "name": "victim-welfare-system-database",
+  "version": "1.0.0",
+  "description": "Database scripts and migrations",
+  "scripts": {
+    "seed": "node scripts/seedDatabase.js",
+    "reset": "node scripts/resetDatabase.js",
+    "backup": "node scripts/backupDatabase.js"
+  },
+  "dependencies": {
+    "mongodb": "^6.3.0",
+    "mongoose": "^8.0.3",
+    "dotenv": "^16.3.1"
+  }
+}

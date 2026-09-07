@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindShield AI - Multilingual Stress & Distress Analytics</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f5ff',
+                            100: '#e0ebff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        },
+                        darkbg: '#0f172a',
+                        cardbg: '#1e293b',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.4);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.6);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+    <!-- Navbar -->
+    <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-brain text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-white tracking-tight">MindShield <span class="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">AI</span></h1>
+                    <p class="text-xs text-slate-400">Multilingual Stress & Distress Analyzer</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="inline-flex items-center gap-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Model Active
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Interactive Chat & Input -->
+        <section class="lg:col-span-7 flex flex-col glass-card rounded-2xl p-4 sm:p-6 shadow-xl relative overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-comments text-blue-400"></i>
+                    <h2 class="font-semibold text-slate-200">Interactive Chat Session</h2>
+                </div>
+                <button id="clear-btn" class="text-xs text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1">
+                    <i class="fa-solid fa-trash-can"></i> Clear Chat
+                </button>
+            </div>
+
+            <!-- Chat Message Container -->
+            <div id="chat-box" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar min-h-[380px] max-h-[500px]">
+                <!-- Initial Welcome Message -->
+                <div class="flex items-start space-x-3">
+                    <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-sm shadow">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="glass-card rounded-2xl rounded-tl-none p-4 max-w-[85%] text-slate-200 text-sm leading-relaxed border-blue-500/20">
+                        <p class="font-medium text-blue-400 text-xs mb-1">MindShield AI Counsellor</p>
+                        Hello! You can share what you are going through in <strong>any language</strong> (Telugu, Hindi, English, Spanish, etc.). I will analyze your emotional state, predict the distress score, and respond back in your exact language.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Quick Input Buttons -->
+            <div class="mt-4 pt-3 border-t border-slate-800/80">
+                <p class="text-xs text-slate-400 mb-2 font-medium">Try quick sample inputs:</p>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="setSample('నాకు చాలా భయంగా ఉంది, వాళ్ళు మళ్ళీ బెదిరించారు')" class="text-xs bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg transition-colors">
+                        🇮🇳 Telugu (High Distress)
+                    </button>
+                    <button onclick="setSample('मुझे बहुत तनाव महसूस हो रहा है और काम का बोझ बहुत ज्यादा है')" class="text-xs bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg transition-colors">
+                        🇮🇳 Hindi (Moderate Stress)
+                    </button>
+                    <button onclick="setSample('I had a great day today and everything went smoothly!')" class="text-xs bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg transition-colors">
+                        🇬🇧 English (Stable/Joy)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Message Input Form -->
+            <form id="chat-form" class="mt-3 flex items-center gap-2">
+                <input type="text" id="user-input" required placeholder="Type how you are feeling in any language..." 
+                    class="flex-1 bg-slate-900/90 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-slate-100 placeholder-slate-500 rounded-xl px-4 py-3 text-sm outline-none transition-all">
+                <button type="submit" id="send-btn" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-5 py-3 rounded-xl font-medium text-sm flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50">
+                    <span>Send</span>
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+            </form>
+        </section>
+
+        <!-- Right Column: Real-Time Score & Analytics Dashboard -->
+        <section class="lg:col-span-5 flex flex-col space-y-5">
+
+            <!-- Distress Score Card -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-indigo-400"></i> Distress Score Prediction
+                    </h3>
+                    <span id="score-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                        Waiting for input...
+                    </span>
+                </div>
+
+                <!-- Main Meter & Score -->
+                <div class="flex items-center justify-between my-2 bg-slate-900/60 rounded-xl p-4 border border-slate-800">
+                    <div>
+                        <div class="text-4xl font-extrabold text-white tracking-tight" id="score-display">--</div>
+                        <p class="text-xs text-slate-400 mt-1">Scale 0.0 (Calm) to 100.0 (Severe)</p>
+                    </div>
+                    <div class="text-right">
+                        <div id="crisis-indicator" class="hidden animate-bounce inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-bold">
+                            <i class="fa-solid fa-triangle-exclamation"></i> CRISIS FLAG
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden mt-3 p-0.5">
+                    <div id="score-progress" class="bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 h-full rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Crisis Helpline Banner (Shown dynamically) -->
+            <div id="crisis-alert-banner" class="hidden glass-card rounded-2xl p-4 bg-red-950/40 border-red-500/40 text-red-200 shadow-xl">
+                <div class="flex items-start gap-3">
+                    <div class="p-2 bg-red-500/20 rounded-xl text-red-400 text-xl flex-shrink-0">
+                        <i class="fa-solid fa-shield-heart"></i>
+                    </div>
+                    <div class="text-xs">
+                        <h4 class="font-bold text-red-300 text-sm mb-1">Immediate Support Helpline</h4>
+                        <p class="leading-relaxed">If you or someone you know is in crisis, please connect with emergency helplines immediately. You are not alone.</p>
+                        <div class="mt-2 flex gap-2">
+                            <a href="tel:9152987821" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-semibold inline-flex items-center gap-1">
+                                <i class="fa-solid fa-phone"></i> Call Helpline
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Language & Sentiment Card -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h3 class="font-semibold text-slate-200 text-sm mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-language text-blue-400"></i> Language & Sentiment Analysis
+                </h3>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                        <span class="text-slate-400 block mb-1">Detected Language</span>
+                        <span id="lang-display" class="font-bold text-slate-200 text-sm">--</span>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                        <span class="text-slate-400 block mb-1">Sentiment Classification</span>
+                        <span id="sentiment-display" class="font-bold text-slate-200 text-sm">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emotion Breakdown Card -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h3 class="font-semibold text-slate-200 text-sm mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-purple-400"></i> Emotion Probability Distribution
+                </h3>
+                <div id="emotions-container" class="space-y-2.5 text-xs">
+                    <p class="text-slate-400 text-center py-4">No emotion metrics recorded yet.</p>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="border-t border-slate-800/80 bg-slate-900/40 py-4 text-center text-xs text-slate-400">
+        <p>MindShield AI • Powered by FastAPI & RoBERTa Transformers</p>
+    </footer>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const chatBox = document.getElementById('chat-box');
+        const sendBtn = document.getElementById('send-btn');
+        const clearBtn = document.getElementById('clear-btn');
+
+        const scoreDisplay = document.getElementById('score-display');
+        const scoreBadge = document.getElementById('score-badge');
+        const scoreProgress = document.getElementById('score-progress');
+        const crisisIndicator = document.getElementById('crisis-indicator');
+        const crisisAlertBanner = document.getElementById('crisis-alert-banner');
+        const langDisplay = document.getElementById('lang-display');
+        const sentimentDisplay = document.getElementById('sentiment-display');
+        const emotionsContainer = document.getElementById('emotions-container');
+
+        const langNames = {
+            'te': 'Telugu (తెలుగు)',
+            'hi': 'Hindi (हिंदी)',
+            'en': 'English',
+            'es': 'Spanish (Español)',
+            'fr': 'French (Français)',
+            'ta': 'Tamil (தமிழ்)',
+            'kn': 'Kannada (ಕನ್ನಡ)',
+            'ml': 'Malayalam (മലയാളം)',
+            'mr': 'Marathi (मराठी)',
+            'bn': 'Bengali (বাংলা)'
+        };
+
+        function setSample(text) {
+            userInput.value = text;
+            userInput.focus();
+        }
+
+        clearBtn.addEventListener('click', () => {
+            chatBox.innerHTML = `
+                <div class="flex items-start space-x-3">
+                    <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-sm shadow">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="glass-card rounded-2xl rounded-tl-none p-4 max-w-[85%] text-slate-200 text-sm leading-relaxed border-blue-500/20">
+                        <p class="font-medium text-blue-400 text-xs mb-1">MindShield AI Counsellor</p>
+                        Chat reset. Enter any message in your language to analyze stress and get translated feedback.
+                    </div>
+                </div>
+            `;
+            resetMetrics();
+        });
+
+        function resetMetrics() {
+            scoreDisplay.innerText = '--';
+            scoreBadge.innerText = 'Waiting for input...';
+            scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700';
+            scoreProgress.style.width = '0%';
+            crisisIndicator.classList.add('hidden');
+            crisisAlertBanner.classList.add('hidden');
+            langDisplay.innerText = '--';
+            sentimentDisplay.innerText = '--';
+            emotionsContainer.innerHTML = '<p class="text-slate-400 text-center py-4">No emotion metrics recorded yet.</p>';
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            // Render User Bubble
+            appendUserMessage(text);
+            userInput.value = '';
+            sendBtn.disabled = true;
+
+            // Render Loading AI Bubble
+            const loadingId = appendLoadingMessage();
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ case_id: 'web_session_' + Date.now(), text: text })
+                });
+
+                if (!response.ok) throw new Error('Server returned ' + response.status);
+                const data = await response.json();
+
+                // Remove loading bubble and append real AI reply
+                removeMessage(loadingId);
+                appendAIMessage(data.reply, data.language_detected);
+
+                // Update Analytics Dashboard
+                updateDashboard(data);
+
+            } catch (err) {
+                console.error(err);
+                removeMessage(loadingId);
+                appendAIMessage('Sorry, an error occurred while connecting to the server. Please check the backend connection.', 'en');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        });
+
+        function appendUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'flex items-start justify-end space-x-3';
+            div.innerHTML = `
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-none p-4 max-w-[85%] text-sm leading-relaxed shadow">
+                    <p class="font-medium text-blue-200 text-xs mb-1 text-right">You</p>
+                    ${escapeHtml(text)}
+                </div>
+                <div class="h-9 w-9 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 text-slate-300 text-sm shadow">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendLoadingMessage() {
+            const id = 'msg_' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'flex items-start space-x-3';
+            div.innerHTML = `
+                <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-sm shadow animate-pulse">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="glass-card rounded-2xl rounded-tl-none p-4 max-w-[85%] text-slate-300 text-sm leading-relaxed flex items-center gap-2">
+                    <i class="fa-solid fa-spinner animate-spin text-blue-400"></i> Analyzing emotional state & translating response...
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return id;
+        }
+
+        function appendAIMessage(reply, langCode) {
+            const div = document.createElement('div');
+            div.className = 'flex items-start space-x-3';
+            const langLabel = langNames[langCode] || langCode.toUpperCase();
+
+            div.innerHTML = `
+                <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-sm shadow">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="glass-card rounded-2xl rounded-tl-none p-4 max-w-[85%] text-slate-200 text-sm leading-relaxed border-blue-500/20">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <p class="font-medium text-blue-400 text-xs">MindShield AI Counsellor</p>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Output: ${langLabel}</span>
+                    </div>
+                    <p class="text-slate-100">${escapeHtml(reply)}</p>
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function removeMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function updateDashboard(data) {
+            const score = data.distress_score;
+            scoreDisplay.innerText = score.toFixed(1);
+            scoreProgress.style.width = Math.min(100, Math.max(0, score)) + '%';
+
+            // Crisis & Band updates
+            if (data.crisis_flag || score >= 90) {
+                scoreBadge.innerText = 'CRISIS DETECTED';
+                scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/40';
+                crisisIndicator.classList.remove('hidden');
+                crisisAlertBanner.classList.remove('hidden');
+            } else if (score >= 70) {
+                scoreBadge.innerText = 'HIGH DISTRESS';
+                scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/40';
+                crisisIndicator.classList.add('hidden');
+                crisisAlertBanner.classList.add('hidden');
+            } else if (score >= 40) {
+                scoreBadge.innerText = 'MODERATE STRESS';
+                scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40';
+                crisisIndicator.classList.add('hidden');
+                crisisAlertBanner.classList.add('hidden');
+            } else {
+                scoreBadge.innerText = 'STABLE / LOW';
+                scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+                crisisIndicator.classList.add('hidden');
+                crisisAlertBanner.classList.add('hidden');
+            }
+
+            // Language & Sentiment
+            const langCode = data.language_detected;
+            langDisplay.innerText = (langNames[langCode] || langCode.toUpperCase()) + ` (${langCode})`;
+
+            const sent = data.sentiment;
+            const sentPct = (sent.score * 100).toFixed(0);
+            sentimentDisplay.innerHTML = `<span class="${sent.label === 'negative' ? 'text-red-400' : 'text-emerald-400'} capitalize">${sent.label}</span> <span class="text-slate-400 font-normal">(${sentPct}%)</span>`;
+
+            // Emotions Breakdown
+            if (data.emotions && Array.isArray(data.emotions)) {
+                const sortedEmotions = [...data.emotions].sort((a, b) => b.score - a.score);
+                emotionsContainer.innerHTML = sortedEmotions.map(e => {
+                    const pct = (e.score * 100).toFixed(1);
+                    const color = getEmotionColor(e.label);
+                    return `
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="capitalize font-medium text-slate-300">${e.label}</span>
+                                <span class="text-slate-400">${pct}%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                <div class="${color} h-full rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function getEmotionColor(label) {
+            switch(label.toLowerCase()) {
+                case 'fear': return 'bg-purple-500';
+                case 'sadness': return 'bg-blue-500';
+                case 'anger': return 'bg-red-500';
+                case 'disgust': return 'bg-emerald-600';
+                case 'joy': return 'bg-amber-400';
+                case 'surprise': return 'bg-teal-400';
+                default: return 'bg-slate-500';
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Local Machine Learning Models (large binary files downloaded to ~/Desktop/models or ./models)
+models/
+*.bin
+*.safetensors
+*.h5
+
+# Logs & Temporary files
+*.log
+.system_generated/
+scratch/

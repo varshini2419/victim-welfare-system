@@ -6,12 +6,15 @@ const protect = asyncHandler(async (req, res, next) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.query.token) {
+    token = req.query.token;
+  }
+
+  if (token) {
     try {
-      token = req.headers.authorization.split(' ')[1];
-
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      const user = await User.findById(decoded.userId).select('-passwordHash');
+      const user = await User.findById(decoded.userId || decoded._id).select('-passwordHash');
 
       if (!user) {
         res.status(401);
@@ -25,6 +28,10 @@ const protect = asyncHandler(async (req, res, next) => {
       }
 
       req.user = user;
+      req.user.userId = user._id;
+      req.user.id = user._id;
+      req.user.email = user.email;
+      req.user.role = user.role;
       next();
     } catch (error) {
       res.status(401);

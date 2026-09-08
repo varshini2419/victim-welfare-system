@@ -1,7 +1,17 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import './VictimLayout.css';
 
 export default function VictimNavbar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <header className="victim-navbar">
       <div className="navbar-left">
@@ -24,8 +34,19 @@ export default function VictimNavbar() {
         </div>
         <div className="user-details">
           <span className="logged-in-text">Logged in as:</span>
-          <span className="user-name">Victim Session</span>
+          <span className="user-name">{user?.name || 'Victim Session'}</span>
         </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="victim-logout-btn"
+          title="Sign Out"
+        >
+          <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span>Logout</span>
+        </button>
       </div>
     </header>
   );

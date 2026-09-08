@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import './CounselorLayout.css';
 
 export default function CounselorNavbar() {
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const displayedName = storedUser?.name || 'Counselor';
+
   return (
     <header className="counselor-navbar">
       <div className="navbar-left">
@@ -11,11 +21,11 @@ export default function CounselorNavbar() {
           <span className="brand-subtitle">National Crime Records Bureau</span>
         </div>
       </div>
-      
+
       <div className="navbar-center">
         <h1>AAROHAN (Counselor Portal)</h1>
       </div>
-      
+
       <div className="navbar-right">
         <div className="user-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor" className="profile-svg">
@@ -24,7 +34,7 @@ export default function CounselorNavbar() {
         </div>
         <div className="user-details">
           <span className="logged-in-text">Logged in as:</span>
-          <span className="user-name">Dr. Counselor</span>
+          <span className="user-name">{displayedName}</span>
         </div>
       </div>
     </header>

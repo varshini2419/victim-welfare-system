@@ -9,6 +9,7 @@ import VictimProfile from '../pages/counselor/VictimProfile';
 import FollowUps from '../pages/counselor/FollowUps';
 import Notifications from '../pages/counselor/Notifications';
 import ConsultationWorkspace from '../pages/counselor/ConsultationWorkspace';
+import CaseReport from '../pages/counselor/CaseReport';
 import Profile from '../pages/counselor/Profile';
 
 export default function CounselorRoutes() {
@@ -16,6 +17,7 @@ export default function CounselorRoutes() {
     <Routes>
       <Route element={<CounselorLayout />}>
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="case-report/:id" element={<CaseReport />} />
         <Route path="requests" element={<Requests />} />
         <Route path="appointments" element={<Appointments />} />
         <Route path="victims" element={<MyVictims />} />
@@ -24,7 +26,7 @@ export default function CounselorRoutes() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="consultation/:id" element={<ConsultationWorkspace />} />
         <Route path="profile" element={<Profile />} />
-        <Route path="*" element={<Navigate to="dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/counselor/dashboard" replace />} />
       </Route>
     </Routes>
   );

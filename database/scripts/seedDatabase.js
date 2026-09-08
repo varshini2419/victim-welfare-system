@@ -1,4 +1,5 @@
-require('dotenv').config({ path: '../backend/.env' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../backend/.env') });
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../../backend/src/models/User');
@@ -32,7 +33,9 @@ const seedAdmin = async () => {
       email: process.env.ADMIN_EMAIL,
       passwordHash,
       role: 'admin',
-      status: 'active'
+      status: 'active',
+      state: 'Andhra Pradesh',
+      district: 'All'
     });
 
     console.log('Admin account created successfully.');

@@ -5,10 +5,10 @@ const connectDB = async () => {
     let uri = process.env.MONGO_URI;
     
     if (process.env.USE_MEMORY_DB === 'true') {
-      const { MongoMemoryServer } = require('mongodb-memory-server');
-      const mongoServer = await MongoMemoryServer.create();
+      const { MongoMemoryReplSet } = require('mongodb-memory-server');
+      const mongoServer = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
       uri = mongoServer.getUri();
-      console.log('Using in-memory MongoDB');
+      console.log('Using in-memory MongoDB (Replica Set enabled for transactions)');
     }
 
     const conn = await mongoose.connect(uri);

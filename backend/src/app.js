@@ -8,15 +8,23 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorMiddleware'
 const app = express();
 
 // Security Middlewares
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
 }));
 
+const path = require('path');
+
 // Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Serve static profiles only
+app.use('/uploads/profiles', express.static(path.join(__dirname, '../uploads/profiles')));
+// Removed generic /uploads to prevent direct access to /uploads/documents
 
 // Logger
 if (process.env.NODE_ENV !== 'production') {

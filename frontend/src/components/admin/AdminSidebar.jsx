@@ -25,7 +25,7 @@ export default function AdminSidebar() {
         </li>
         <li>
           <NavLink to="/admin/counselors" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-            <span className="nav-icon" aria-hidden="true">👨‍⚕️</span>
+            <span className="nav-icon" aria-hidden="true">👥</span>
             <div className="nav-text-container">
               <span className="nav-label-primary">Counselor Management</span>
             </div>

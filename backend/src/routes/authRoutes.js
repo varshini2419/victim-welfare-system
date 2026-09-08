@@ -4,18 +4,33 @@ const {
   registerVictim, 
   registerCounselor, 
   login, 
-  getMe 
+  loginVictim,
+  resendVictimOtp,
+  getMe,
+  getRegistrationStatus
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { 
   registerVictimValidation, 
   registerCounselorValidation, 
-  loginValidation 
+  loginValidation,
+  victimLoginValidation,
+  victimResendOtpValidation
 } = require('../validators/authValidator');
 
-router.post('/register/victim', registerVictimValidation, registerVictim);
+const { uploadDocuments } = require('../middleware/uploadMiddleware');
+const { authLimiter, otpLimiter, otpResendLimiter } = require('../middleware/rateLimitMiddleware');
+
+router.post('/register/victim', uploadDocuments.array('documents', 5), registerVictimValidation, registerVictim);
 router.post('/register/counselor', registerCounselorValidation, registerCounselor);
 router.post('/login', loginValidation, login);
+router.post('/login/victim', otpLimiter, victimLoginValidation, loginVictim);
+router.post('/login/victim/send-otp', otpLimiter, victimResendOtpValidation, resendVictimOtp);
+router.post('/login/victim/resend-otp', otpResendLimiter, victimResendOtpValidation, resendVictimOtp);
 router.get('/me', protect, getMe);
 
+// Public registration tracking — rate-limited to prevent enumeration
+router.get('/registration-status/:registrationId', authLimiter, getRegistrationStatus);
+
 module.exports = router;
+

@@ -1,0 +1,878 @@
+﻿/* AdminLanding.css */
+:root {
+  --admin-navy: #0f172a;
+  --admin-deep-blue: #1a1a47;
+  --admin-teal: #0d9488;
+  --admin-cyan: #06b6d4;
+  --admin-gold: #d97706;
+  --admin-amber: #f59e0b;
+  --admin-dark-card: rgba(15, 23, 42, 0.82);
+  --admin-border-glow: rgba(45, 212, 191, 0.35);
+}
+
+.admin-landing {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+  background-color: #ffffff;
+  overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================================================
+   1. GOVERNMENT TOP BAR & NOTCH HEADER
+   ========================================================================== */
+.admin-top-bar {
+  background-color: #0d1527;
+  color: #ffffff;
+  padding: 0.35rem 2rem;
+  font-size: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #0d9488;
+}
+
+.admin-top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-motto-hindi {
+  font-weight: 700;
+  color: #fcd34d;
+  letter-spacing: 0.05em;
+}
+
+.admin-top-bar-divider {
+  opacity: 0.4;
+}
+
+.admin-top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.admin-top-link {
+  color: #cbd5e1;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.admin-top-link:hover {
+  color: #38bdf8;
+}
+
+/* Main Top Header with Central Emblem Notch */
+.admin-main-header {
+  position: relative;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  z-index: 30;
+}
+
+.admin-header-corner-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-top: 48px solid #0f172a;
+  border-right: 48px solid transparent;
+  z-index: 1;
+}
+
+.admin-header-corner-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 48px solid #0f172a;
+  border-left: 48px solid transparent;
+  z-index: 1;
+}
+
+.admin-header-content-wrapper {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0.75rem 2rem;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  position: relative;
+}
+
+.admin-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.admin-ministry-emblem {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+}
+
+.admin-branding-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-brand-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.admin-brand-subtitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0d9488;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Central Emblem Notch */
+.admin-center-notch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  padding: 0.35rem 1.5rem;
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e2e8f0;
+  border-top: none;
+}
+
+.admin-center-emblem {
+  height: 46px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 0.25rem;
+}
+
+.admin-center-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.admin-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.875rem;
+}
+
+.admin-header-login-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: 6px;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 6px rgba(120, 53, 15, 0.4);
+  transition: all 0.2s ease;
+  letter-spacing: 0.03em;
+}
+
+.admin-header-login-btn:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.45);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   2. HERO BANNER — TWO COLUMN LAYOUT (LEFT: TEXT, RIGHT: DASHBOARD IMAGE)
+   ========================================================================== */
+.admin-hero-section {
+  position: relative;
+  min-height: 640px;
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 1.5rem 3rem;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.admin-hero-dark-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(5, 15, 35, 0.91) 0%,
+    rgba(10, 20, 50, 0.88) 40%,
+    rgba(13, 148, 136, 0.65) 100%
+  );
+  z-index: 1;
+}
+
+/* SVG Swoosh Layer */
+.admin-hero-swoosh {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.7;
+}
+
+/* Two-column hero grid */
+.admin-hero-grid {
+  position: relative;
+  z-index: 10;
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+/* LEFT COLUMN */
+.admin-hero-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.admin-portal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(13, 148, 136, 0.30);
+  border: 1px solid rgba(45, 212, 191, 0.6);
+  padding: 0.35rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #a7f3d0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.25rem;
+  backdrop-filter: blur(8px);
+}
+
+.admin-hero-title {
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  margin: 0 0 0.5rem;
+  color: #ffffff;
+  text-transform: uppercase;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+  line-height: 1.1;
+}
+
+.admin-hero-subtitle {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0 0 1rem;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.admin-hero-desc {
+  font-size: 1rem;
+  color: #cbd5e1;
+  line-height: 1.65;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  margin-bottom: 2rem;
+  max-width: 520px;
+}
+
+/* Hero Single Login Button */
+.admin-hero-cta-row {
+  margin-bottom: 2.75rem;
+}
+
+.admin-hero-login-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #b45309 0%, #78350f 100%);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 0.875rem 2.25rem;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 24px rgba(120, 53, 15, 0.55);
+  transition: all 0.25s ease;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-hero-login-btn:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  box-shadow: 0 12px 28px rgba(217, 119, 6, 0.6);
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+/* Feature Badges (4-card grid below the button, LEFT column) */
+.admin-hero-features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  width: 100%;
+}
+
+.admin-feature-badge-card {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 1rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-feature-badge-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #b45309, #0d9488);
+}
+
+.admin-feature-badge-card:hover {
+  transform: translateY(-3px);
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: 0 8px 20px rgba(13, 148, 136, 0.25);
+}
+
+.admin-badge-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(13, 148, 136, 0.25);
+  border: 1px solid rgba(45, 212, 191, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  margin-bottom: 0.625rem;
+}
+
+.admin-badge-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.3;
+  margin-bottom: 0.25rem;
+}
+
+.admin-badge-desc {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* Indicator Pills */
+.admin-hero-indicator-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.admin-indicator-pill {
+  width: 10px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+.admin-indicator-pill.active {
+  background: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  height: 28px;
+}
+
+/* RIGHT COLUMN: Dashboard Screenshot */
+.admin-hero-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-dashboard-frame {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(45, 212, 191, 0.25),
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(13, 148, 136, 0.2);
+  border: 2px solid rgba(45, 212, 191, 0.3);
+  transition: all 0.35s ease;
+  max-width: 540px;
+  width: 100%;
+}
+
+.admin-dashboard-frame:hover {
+  transform: translateY(-6px) rotate(-1deg);
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.4),
+    0 16px 48px rgba(0, 0, 0, 0.65),
+    0 0 100px rgba(13, 148, 136, 0.35);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.admin-dashboard-img {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+
+/* Floating glow badge on dashboard */
+.admin-dashboard-live-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(5, 15, 35, 0.85);
+  border: 1px solid rgba(45, 212, 191, 0.5);
+  border-radius: 9999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #5eead4;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  backdrop-filter: blur(6px);
+  letter-spacing: 0.04em;
+}
+
+.admin-live-dot {
+  width: 7px;
+  height: 7px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: adminLivePulse 1.5s infinite;
+}
+
+@keyframes adminLivePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+/* ==========================================================================
+   3. ADMIN'S QUICK LINKS CAPSULE BUTTON
+   ========================================================================== */
+.admin-quick-links-wrapper {
+  position: relative;
+  z-index: 20;
+  margin-top: -24px;
+  display: flex;
+  justify-content: center;
+}
+
+.admin-quick-links-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #0f172a 0%, #1a3a4a 100%);
+  color: #ffffff;
+  padding: 0.75rem 2.25rem;
+  border-radius: 9999px;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 2px solid rgba(45, 212, 191, 0.5);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.admin-quick-links-btn:hover {
+  background: linear-gradient(135deg, #b45309 0%, #78350f 100%);
+  border-color: #d97706;
+  box-shadow: 0 10px 25px rgba(180, 83, 9, 0.5);
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+.admin-quick-links-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.admin-quick-links-btn:hover svg {
+  transform: translateX(4px);
+}
+
+/* ==========================================================================
+   4. ADMIN CAPABILITIES SECTION
+   ========================================================================== */
+.admin-capabilities-section {
+  padding: 4.5rem 1.5rem 3.5rem;
+  background-color: #f8fafc;
+}
+
+.admin-section-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-section-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.admin-section-tag {
+  color: #b45309;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.admin-section-heading {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.75rem;
+}
+
+.admin-section-subtext {
+  font-size: 1rem;
+  color: #64748b;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.admin-capabilities-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.75rem;
+}
+
+.admin-capability-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 2rem 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-capability-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+.admin-capability-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background-color: #fff7ed;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-capability-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.5rem;
+}
+
+.admin-capability-desc {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ==========================================================================
+   5. EMERGENCY HELPLINE BAR
+   ========================================================================== */
+.admin-helpline-bar {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
+  padding: 2rem 1.5rem;
+  border-top: 1px solid #334155;
+}
+
+.admin-helpline-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.admin-helpline-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-helpline-icon {
+  width: 48px;
+  height: 48px;
+  background: #dc2626;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.admin-helpline-text h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.admin-helpline-text p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
+.admin-helpline-pills {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-helpline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.admin-helpline-pill:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+/* ==========================================================================
+   6. APP STORE ROW + FOOTER
+   ========================================================================== */
+.admin-app-stores-row {
+  background-color: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-store-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #000000;
+  color: #ffffff;
+  padding: 0.45rem 0.875rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.admin-store-badge:hover {
+  opacity: 0.85;
+}
+
+.admin-store-badge-light {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+/* Footer */
+.admin-footer {
+  background-color: #0a0f1d;
+  color: #94a3b8;
+  padding: 2.5rem 1.5rem 1.5rem;
+  font-size: 0.8125rem;
+  border-top: 1px solid #1e293b;
+}
+
+.admin-footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-footer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 1.25rem;
+}
+
+.admin-footer-nav {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-footer-nav a {
+  color: #94a3b8;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.admin-footer-nav a:hover {
+  color: #fbbf24;
+}
+
+.admin-footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   7. RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .admin-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  .admin-hero-left {
+    align-items: center;
+    text-align: center;
+  }
+  .admin-hero-desc {
+    max-width: 100%;
+  }
+  .admin-hero-right {
+    order: -1;
+  }
+  .admin-dashboard-frame {
+    max-width: 400px;
+  }
+  .admin-hero-features-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .admin-capabilities-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-header-content-wrapper {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    text-align: center;
+  }
+  .admin-header-left {
+    justify-content: center;
+  }
+  .admin-header-right {
+    justify-content: center;
+  }
+  .admin-hero-title {
+    font-size: 2.25rem;
+  }
+  .admin-hero-subtitle {
+    font-size: 1.15rem;
+  }
+  .admin-hero-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .admin-capabilities-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-helpline-container {
+    flex-direction: column;
+    text-align: center;
+  }
+  .admin-top-bar {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    text-align: center;
+  }
+  .admin-top-bar-right {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-hero-features-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -18,7 +18,27 @@ const chatLimiter = rateLimit({
   }
 });
 
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    success: false,
+    message: 'Too many OTP requests. Please try again later.'
+  }
+});
+
+const otpResendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: {
+    success: false,
+    message: 'Too many OTP resend requests. Please try again later.'
+  }
+});
+
 module.exports = {
   authLimiter,
-  chatLimiter
+  chatLimiter,
+  otpLimiter,
+  otpResendLimiter
 };

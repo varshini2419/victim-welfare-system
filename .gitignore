@@ -19,3 +19,4 @@ models/
 *.log
 .system_generated/
 scratch/
+.env

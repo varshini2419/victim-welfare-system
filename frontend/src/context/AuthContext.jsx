@@ -58,6 +58,7 @@ export const AuthProvider = ({ children }) => {
     }
   });
   const [loading, setLoading] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -78,10 +79,23 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-    if (!storedToken || !storedUser) return;
+    if (!storedToken) {
+      setAuthReady(true);
+      return;
+    }
 
     const decoded = decodeJwt(storedToken);
-    const stored = JSON.parse(storedUser);
+    let stored = null;
+
+    try {
+      stored = storedUser ? JSON.parse(storedUser) : null;
+    } catch (err) {
+      console.error('Stored auth user data is invalid:', err);
+    }
+
+    if (!stored && decoded) {
+      setUser(normalizeUserObject(decoded));
+    }
 
     if (decoded?.role && stored?.role && decoded.role !== stored.role) {
       console.error('AUTH SESSION MISMATCH', {
@@ -98,6 +112,8 @@ export const AuthProvider = ({ children }) => {
         window.location.href = '/login';
       }
     }
+
+    setAuthReady(true);
   }, []);
 
   const loginUser = async (email, password) => {
@@ -201,7 +217,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, role: user?.role, loginUser, loginVictim, sendVictimOtp, resendVictimOtp, logout, loading }}>
+    <AuthContext.Provider value={{ token, user, role: user?.role, loginUser, loginVictim, sendVictimOtp, resendVictimOtp, logout, loading, authReady }}>
       {children}
     </AuthContext.Provider>
   );

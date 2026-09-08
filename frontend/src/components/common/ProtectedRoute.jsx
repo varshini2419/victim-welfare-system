@@ -3,8 +3,12 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export default function ProtectedRoute({ children, allowedRoles, redirectTo }) {
-  const { token, role } = useAuth();
+  const { token, role, authReady } = useAuth();
   const location = useLocation();
+
+  if (!authReady) {
+    return null;
+  }
   
   // Determine appropriate login destination based on path or allowedRoles
   const getLoginRoute = () => {

@@ -2,6 +2,30 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import './Chatbot.css';
 
+const LANGUAGES = [
+  { code: 'en-US', langKey: 'en', label: 'English' },
+  { code: 'te-IN', langKey: 'te', label: 'Telugu (తెలుగు)' },
+  { code: 'hi-IN', langKey: 'hi', label: 'Hindi (हिंदी)' },
+  { code: 'ta-IN', langKey: 'ta', label: 'Tamil (தமிழ்)' },
+  { code: 'kn-IN', langKey: 'kn', label: 'Kannada (కన్నడ)' },
+  { code: 'ml-IN', langKey: 'ml', label: 'Malayalam (മലയാളം)' },
+  { code: 'es-ES', langKey: 'es', label: 'Spanish (Español)' },
+  { code: 'fr-FR', langKey: 'fr', label: 'French (Français)' },
+  { code: 'mr-IN', langKey: 'mr', label: 'Marathi (मराठी)' },
+  { code: 'bn-IN', langKey: 'bn', label: 'Bengali (বাংলা)' },
+  { code: 'gu-IN', langKey: 'gu', label: 'Gujarati (ગુજરાતી)' },
+];
+
+const EMOTION_ICONS = {
+  Fearful: '😨 Fearful',
+  Anxious: '😟 Anxious',
+  Sad: '😢 Sad',
+  Angry: '😠 Angry',
+  Calm: '😌 Calm',
+  Hopeful: '🌟 Hopeful',
+  Neutral: '😐 Neutral'
+};
+
 export default function Chatbot() {
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
@@ -10,9 +34,16 @@ export default function Chatbot() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [systemError, setSystemError] = useState('');
+  
+  // Multilingual & Audio State
+  const [selectedLang, setSelectedLang] = useState('en-US');
+  const [isListening, setIsListening] = useState(false);
+  const [autoTts, setAutoTts] = useState(true);
+  const [speakingMsgId, setSpeakingMsgId] = useState(null);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   // Helper to fetch with auth
   const apiFetch = async (endpoint, options = {}) => {
@@ -30,6 +61,98 @@ export default function Chatbot() {
       throw new Error(data.message || 'API Error');
     }
     return data;
+  };
+
+  // Setup Web Speech Recognition for Audio Intake (STT)
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = selectedLang;
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInputValue((prev) => (prev ? prev + ' ' + transcript : transcript));
+        }
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, [selectedLang]);
+
+  // Handle Speech-to-Text Toggle
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in this browser. You can type your message below.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.lang = selectedLang;
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error('Speech recognition start failed:', err);
+        setIsListening(false);
+      }
+    }
+  };
+
+  // Text-to-Speech (TTS) Audio Output
+  const speakText = (text, msgId = null) => {
+    if (!('speechSynthesis' in window)) {
+      alert('Audio playback is not supported in your browser.');
+      return;
+    }
+
+    window.speechSynthesis.cancel(); // Stop ongoing speech
+
+    if (speakingMsgId === msgId && msgId !== null) {
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = selectedLang;
+    utterance.rate = 0.95;
+
+    // Try to match voice for selected language if available
+    const voices = window.speechSynthesis.getVoices();
+    const langVoice = voices.find(v => v.lang.startsWith(selectedLang.split('-')[0]));
+    if (langVoice) {
+      utterance.voice = langVoice;
+    }
+
+    utterance.onstart = () => {
+      if (msgId) setSpeakingMsgId(msgId);
+    };
+
+    utterance.onend = () => {
+      setSpeakingMsgId(null);
+    };
+
+    utterance.onerror = () => {
+      setSpeakingMsgId(null);
+    };
+
+    window.speechSynthesis.speak(utterance);
   };
 
   // 1. Fetch Sessions on mount
@@ -61,7 +184,8 @@ export default function Chatbot() {
           role: m.senderType === 'victim' ? 'user' : 'system',
           content: m.content,
           timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isError: m.senderType === 'system' && m.isFlagged
+          isError: m.senderType === 'system' && m.isFlagged,
+          emotion: m.metadata?.emotion || null
         }));
         setMessages(formatted);
       } catch (err) {
@@ -144,7 +268,6 @@ export default function Chatbot() {
 
     let currentSessionId = activeSessionId;
     
-    // If no active session, create one first
     if (!currentSessionId) {
       try {
         const data = await apiFetch('/sessions', { method: 'POST' });
@@ -156,6 +279,8 @@ export default function Chatbot() {
         return;
       }
     }
+
+    const currentLangObj = LANGUAGES.find(l => l.code === selectedLang) || LANGUAGES[0];
 
     const userMsgObj = {
       id: Date.now().toString(),
@@ -170,21 +295,33 @@ export default function Chatbot() {
     setSystemError('');
 
     try {
-      const data = await apiFetch(`/sessions/${currentSessionId}/messages`, {
+      const responseData = await apiFetch(`/sessions/${currentSessionId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ content: trimmedInput })
+        body: JSON.stringify({ 
+          content: trimmedInput,
+          language: currentLangObj.label
+        })
       });
       
+      const aiData = responseData.data;
+      const detectedEmotion = responseData.emotionResult?.primaryEmotion || 'Empathetic';
+
       const aiMsgObj = {
-        id: data.data._id,
+        id: aiData._id || Date.now().toString(),
         role: 'system',
-        content: data.data.content,
-        timestamp: new Date(data.data.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isError: data.data.isFlagged
+        content: aiData.content,
+        timestamp: new Date(aiData.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isError: aiData.isFlagged,
+        emotionResponse: detectedEmotion
       };
+
       setMessages((prev) => [...prev, aiMsgObj]);
+
+      // Auto-TTS Response Speech if enabled
+      if (autoTts && aiData.content) {
+        speakText(aiData.content, aiMsgObj.id);
+      }
       
-      // Update session list title
       if (messages.length === 0) {
         const updatedSessions = sessions.map(s => {
           if (s._id === currentSessionId) {
@@ -218,22 +355,50 @@ export default function Chatbot() {
   };
 
   if (loading && !activeSessionId && sessions.length === 0) {
-    return <div className="loading-state">Loading support assistant...</div>;
+    return <div className="loading-state">Loading victim support assistant...</div>;
   }
 
   return (
     <div className="chatbot-container">
+      {/* 1. TOP HEADER WITH MULTILINGUAL CONTROLS */}
       <div className="chatbot-top-header">
         <div className="chatbot-header-left">
           <img src="/images/emblem.png" alt="Govt Emblem" className="chatbot-header-logo" />
-          <h1>Govt. Victim Support Assistant</h1>
+          <div>
+            <h1>Govt. Victim Support Assistant (AAROHAN)</h1>
+            <span className="chatbot-subtitle">Empathetic AI Support &amp; Emotion Analysis Portal</span>
+          </div>
         </div>
-        <Link to="/victim/dashboard" className="chatbot-back-link">&larr; Back to Dashboard</Link>
+
+        <div className="chatbot-header-right">
+          {/* Language Selector */}
+          <div className="lang-selector-wrapper">
+            <span className="lang-label">🌐 Language:</span>
+            <select
+              className="lang-select-dropdown"
+              value={selectedLang}
+              onChange={(e) => setSelectedLang(e.target.value)}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Auto-TTS Speech Toggle */}
+          <button
+            className={`btn-action-pill ${autoTts ? 'active' : ''}`}
+            onClick={() => setAutoTts(!autoTts)}
+            title="Toggle automatic audio response reading"
+          >
+            {autoTts ? '🔊 Audio Response: ON' : '🔇 Audio Response: OFF'}
+          </button>
+
+          <Link to="/victim/dashboard" className="chatbot-back-link">&larr; Dashboard</Link>
+        </div>
       </div>
-
-
-      
-      {/* System error banner removed per user request */}
 
       <div className="chat-layout">
         {/* Sidebar */}
@@ -252,28 +417,29 @@ export default function Chatbot() {
           </div>
         </div>
 
-        {/* Main Interface */}
+        {/* Main Chat Interface */}
         <div className="chat-interface">
           <div className="chat-header">
             <div className="chat-status">
               <span className={`status-dot ${systemError ? 'offline' : 'online'}`} aria-hidden="true"></span>
-              <span className="status-text">{systemError ? 'Assistant Offline' : 'Assistant Online'}</span>
+              <span className="status-text">{systemError ? 'Assistant Offline' : 'Assistant Online &amp; Empathetic Listener'}</span>
             </div>
             <div className="chat-actions">
-               <button className="btn-action" onClick={() => handleCheckIn('Okay')}>Check-In</button>
-               <button className="btn-action" onClick={handleRequestCounselor}>Request Counselor</button>
-               {activeSessionId && <button className="btn-action btn-danger" onClick={handleArchive}>Archive</button>}
+              <button className="btn-action" onClick={() => handleCheckIn('Okay')}>Check-In</button>
+              <button className="btn-action" onClick={handleRequestCounselor}>Request Counselor</button>
+              {activeSessionId && <button className="btn-action btn-danger" onClick={handleArchive}>Archive</button>}
             </div>
           </div>
 
+          {/* Chat Messages */}
           <div className="chat-messages-area" aria-live="polite">
             {messages.length === 0 && !isTyping ? (
               <div className="chat-empty-state">
                 <div className="empty-logo-wrapper">
-                   <img src="/images/bot-logo.png" alt="Bot Logo" className="chat-bot-logo" />
+                  <img src="/images/bot-logo.png" alt="Bot Logo" className="chat-bot-logo" />
                 </div>
-                <p className="empty-main-text">Your conversation will appear here.</p>
-                <p className="empty-subtext">Type a message below to start.</p>
+                <p className="empty-main-text">Welcome to AAROHAN Empathetic Support</p>
+                <p className="empty-subtext">You can type or speak into your microphone in your preferred language.</p>
               </div>
             ) : (
               <div className="messages-list">
@@ -285,15 +451,34 @@ export default function Chatbot() {
                     <div className="message-content">
                       {msg.content}
                     </div>
-                    <div className="message-timestamp">
-                      {msg.timestamp} {msg.role === 'user' ? '(You)' : '(System)'}
+
+                    <div className="message-meta-row">
+                      <span className="message-timestamp">
+                        {msg.timestamp} {msg.role === 'user' ? '(You)' : '(AAROHAN AI)'}
+                      </span>
+
+                      {/* Emotion Tag */}
+                      {msg.emotion && EMOTION_ICONS[msg.emotion] && (
+                        <span className="emotion-badge">{EMOTION_ICONS[msg.emotion]}</span>
+                      )}
+
+                      {/* Audio Playback Button (TTS) */}
+                      {msg.role !== 'user' && (
+                        <button
+                          className={`btn-tts-speaker ${speakingMsgId === msg.id ? 'speaking' : ''}`}
+                          onClick={() => speakText(msg.content, msg.id)}
+                          title="Listen to response audio"
+                        >
+                          {speakingMsgId === msg.id ? '⏹️ Stop' : '🔊 Listen Audio'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
                 
                 {isTyping && (
                   <div className="message-wrapper message-system">
-                    <div className="message-content typing-indicator" aria-label="Assistant is typing">
+                    <div className="message-content typing-indicator" aria-label="Assistant is analyzing and typing">
                       <span></span><span></span><span></span>
                     </div>
                   </div>
@@ -303,19 +488,38 @@ export default function Chatbot() {
             )}
           </div>
 
+          {/* Voice Input Prompt when listening */}
+          {isListening && (
+            <div className="listening-banner">
+              <span className="listening-pulse">🔴</span> Listening in {LANGUAGES.find(l => l.code === selectedLang)?.label}... Speak into your microphone.
+            </div>
+          )}
+
+          {/* Input Area */}
           <div className="chat-input-area">
+            {/* Microphone Button (Audio Intake STT) */}
+            <button
+              className={`btn-mic ${isListening ? 'listening' : ''}`}
+              onClick={toggleListening}
+              title={isListening ? 'Stop Voice Recording' : 'Start Voice Input (Microphone)'}
+              type="button"
+            >
+              🎙️
+            </button>
+
             <label htmlFor="chatInput" className="sr-only">Type your message</label>
             <textarea
               id="chatInput"
               ref={inputRef}
               className="chat-input"
-              placeholder="Type a message... (Press Enter to send)"
+              placeholder={`Type or speak in ${LANGUAGES.find(l => l.code === selectedLang)?.label || 'your language'}...`}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isTyping}
               rows={1}
             />
+
             <button 
               className="btn-send"
               onClick={handleSendMessage}

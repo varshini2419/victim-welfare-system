@@ -314,9 +314,40 @@
 .session-item { padding: 0.75rem; border-radius: 0.375rem; cursor: pointer; color: #334155; font-size: 0.9rem; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .session-item:hover { background: #e2e8f0; }
 .session-item.active { background: #e0e7ff; color: #4338ca; font-weight: 500; }
-.chat-actions { display: flex; gap: 0.5rem; }
+.chat-actions { display: flex; gap: 0.5rem; align-items: center; }
 .btn-action { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.375rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.8rem; font-weight: 500; color: #475569; }
 .btn-action:hover { background: #e2e8f0; }
 .btn-danger { color: #dc2626; border-color: #fca5a5; background: #fef2f2; }
 .btn-danger:hover { background: #fee2e2; }
 .system-error-banner { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem; text-align: center; font-weight: 500; }
+
+/* Multilingual & Audio Styling */
+.chatbot-subtitle { font-size: 0.8rem; color: #64748b; display: block; font-weight: normal; margin-top: 2px; }
+.chatbot-header-right { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.lang-selector-wrapper { display: flex; align-items: center; gap: 0.35rem; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.3rem 0.6rem; border-radius: 9999px; }
+.lang-label { font-size: 0.8rem; font-weight: 600; color: #1e293b; }
+.lang-select-dropdown { border: none; background: transparent; font-size: 0.85rem; font-weight: 600; color: #1e3a8a; outline: none; cursor: pointer; }
+
+.btn-action-pill { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-action-pill.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+
+.btn-mic { width: 44px; height: 44px; border-radius: 50%; border: 1px solid #cbd5e1; background: #f1f5f9; color: #1e293b; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+.btn-mic:hover { background: #e2e8f0; transform: scale(1.05); }
+.btn-mic.listening { background: #ef4444; color: #ffffff; border-color: #dc2626; animation: pulseMic 1.2s infinite; }
+
+@keyframes pulseMic {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.listening-banner { background: #fef2f2; color: #991b1b; border-top: 1px solid #fca5a5; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.listening-pulse { font-size: 0.8rem; animation: blink 1s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.message-meta-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem; flex-wrap: wrap; }
+.emotion-badge { font-size: 0.72rem; font-weight: 600; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; border: 1px solid #bae6fd; }
+.btn-tts-speaker { background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+.btn-tts-speaker:hover { background: #e2e8f0; color: #0f172a; }
+.btn-tts-speaker.speaking { background: #dcfce7; color: #166534; border-color: #86efac; }
+

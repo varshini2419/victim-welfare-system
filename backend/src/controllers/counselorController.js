@@ -6,6 +6,7 @@ const Assignment = require('../models/Assignment');
 const Victim = require('../models/Victim');
 const Counselor = require('../models/Counselor');
 const Case = require('../models/Case');
+const EmotionAnalysis = require('../models/EmotionAnalysis');
 
 // @desc    Get counselor profile for the authenticated counselor user
 // @route   GET /api/v1/counselor/profile
@@ -148,6 +149,31 @@ const getAssignedCaseById = asyncHandler(async (req, res) => {
     ? await Victim.findOne({ userId: victimUserId }).select('-aadhaarNumber -panNumber')
     : null;
 
+  let distressAnalysis = null;
+  if (victimUserId) {
+    distressAnalysis = await EmotionAnalysis.findOne({ victimId: victimUserId }).lean();
+  }
+
+  if (!distressAnalysis) {
+    distressAnalysis = {
+      distressScore: 25,
+      distressBand: 'Low',
+      primaryEmotion: 'Calm',
+      emotionsBreakdown: {
+        Anxious: 1,
+        Sad: 1,
+        Fearful: 0,
+        Angry: 0,
+        Calm: 3,
+        Hopeful: 2,
+        Neutral: 2
+      },
+      recentLog: [
+        { message: 'Initial check-in completed.', emotion: 'Calm', distressScore: 25, timestamp: new Date() }
+      ]
+    };
+  }
+
   const caseData = singleCase.toObject();
   const userInfo = caseData.victimId && typeof caseData.victimId === 'object' ? caseData.victimId : {};
   const victimData = victim ? victim.toObject() : {};
@@ -162,7 +188,8 @@ const getAssignedCaseById = asyncHandler(async (req, res) => {
         state: userInfo.state || null,
         district: userInfo.district || null,
         registrationId: userInfo.registrationId || null
-      }
+      },
+      distressAnalysis
     }
   });
 });

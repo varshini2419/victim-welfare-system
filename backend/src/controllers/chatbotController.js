@@ -60,16 +60,18 @@ const getSessionMessages = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/chatbot/sessions/:id/messages
 // @access  Private (Victim only)
 const sendMessage = asyncHandler(async (req, res) => {
-  const { content } = req.body;
+  const { content, language } = req.body;
   const sessionId = req.params.id;
   const victimId = req.user._id;
 
   try {
-    const { aiMessage } = await chatbotService.processVictimMessage(sessionId, victimId, content);
+    const { userMessage, aiMessage, emotionResult } = await chatbotService.processVictimMessage(sessionId, victimId, content, language || 'English');
     
     res.status(200).json({
       success: true,
-      data: aiMessage
+      data: aiMessage,
+      userMessage,
+      emotionResult
     });
   } catch (error) {
     res.status(error.status || 500);

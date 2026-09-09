@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../utils/api';
+import EmotionChart from '../../components/charts/EmotionChart';
 
 const display = (value) => {
   if (value === null || value === undefined || value === '') {
@@ -80,7 +81,7 @@ export default function CaseReport() {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827' }}>Case Report</h1>
-          <p style={{ color: '#4b5563' }}>Assigned victim case details for counseling review.</p>
+          <p style={{ color: '#4b5563' }}>Assigned victim case details &amp; distress analysis for counseling review.</p>
         </div>
         <Link to="/counselor/dashboard" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '500' }}>
           &larr; Back to Dashboard
@@ -95,6 +96,9 @@ export default function CaseReport() {
 
       {!loading && !error && caseInfo && (
         <div style={{ display: 'grid', gap: '1.5rem' }}>
+          {/* Distress Score & Emotion Analysis Report Visual */}
+          <EmotionChart analysis={report?.distressAnalysis} />
+
           <section style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
               Case Information
@@ -257,3 +261,4 @@ export default function CaseReport() {
     </div>
   );
 }
+

@@ -1,49 +1,189 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
-
-const API_BASE = 'http://127.0.0.1:8001';
 
 const LANGUAGES = [
-  { code: 'en-US', name: 'English (US)' },
-  { code: 'te-IN', name: 'Telugu (తెలుగు)' },
-  { code: 'hi-IN', name: 'Hindi (हिंदी)' },
-  { code: 'ta-IN', name: 'Tamil (தமிழ்)' },
-  { code: 'kn-IN', name: 'Kannada (కన్నడ)' },
-  { code: 'ml-IN', name: 'Malayalam (മലയാളം)' },
-  { code: 'es-ES', name: 'Spanish (Español)' },
-  { code: 'fr-FR', name: 'French (Français)' },
+  { code: 'en-US', langKey: 'en', label: 'English' },
+  { code: 'te-IN', langKey: 'te', label: 'Telugu (తెలుగు)' },
+  { code: 'hi-IN', langKey: 'hi', label: 'Hindi (हिंदी)' },
+  { code: 'ta-IN', langKey: 'ta', label: 'Tamil (தமிழ்)' },
+  { code: 'kn-IN', langKey: 'kn', label: 'Kannada (కన్నడ)' },
+  { code: 'ml-IN', langKey: 'ml', label: 'Malayalam (മലയാളം)' },
+  { code: 'es-ES', langKey: 'es', label: 'Spanish (Español)' },
+  { code: 'fr-FR', langKey: 'fr', label: 'French (Français)' },
+  { code: 'mr-IN', langKey: 'mr', label: 'Marathi (मराठी)' },
+  { code: 'bn-IN', langKey: 'bn', label: 'Bengali (বাংলা)' },
+  { code: 'gu-IN', langKey: 'gu', label: 'Gujarati (ગુજરાતી)' },
 ];
+
+const EMOTION_ICONS = {
+  Fearful: '😨 Fearful',
+  Anxious: '😟 Anxious',
+  Sad: '😢 Sad',
+  Angry: '😠 Angry',
+  Calm: '😌 Calm',
+  Hopeful: '🌟 Hopeful',
+  Neutral: '😐 Neutral'
+};
 
 export default function FloatingChatboard() {
   const [isOpen, setIsOpen] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([
     {
-      id: 1,
+      id: 'init-1',
       sender: 'bot',
-      text: "Hello, I am MindShield AI. I am here to offer a safe, empathetic, and confidential space. How are you feeling today?",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      text: "Namaste! I am AAROHAN AI, your empathetic victim support assistant. How are you feeling today?",
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      emotion: 'Calm'
     }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedLang, setSelectedLang] = useState('en-US');
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingStatus, setRecordingStatus] = useState('');
-  const [isCrisis, setIsCrisis] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [autoTts, setAutoTts] = useState(true);
+  const [speakingMsgId, setSpeakingMsgId] = useState(null);
 
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
   const chatBottomRef = useRef(null);
+  const recognitionRef = useRef(null);
+
+  // Helper for authenticated API calls
+  const apiFetch = async (endpoint, options = {}) => {
+    const token = localStorage.getItem('token') || '';
+    const res = await fetch(`/api/v1/chatbot${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers,
+      }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'API Error');
+    }
+    return data;
+  };
+
+  // 1. Fetch sessions & active message history on open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const initChat = async () => {
+      try {
+        const sessRes = await apiFetch('/sessions');
+        const sessList = sessRes.data || [];
+        setSessions(sessList);
+
+        let sId = activeSessionId;
+        if (!sId && sessList.length > 0) {
+          sId = sessList[0]._id;
+          setActiveSessionId(sId);
+        }
+
+        if (sId) {
+          const msgRes = await apiFetch(`/sessions/${sId}/messages`);
+          if (msgRes.data && msgRes.data.length > 0) {
+            const formatted = msgRes.data.map(m => ({
+              id: m._id,
+              sender: m.senderType === 'victim' ? 'user' : 'bot',
+              text: m.content,
+              time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              emotion: m.metadata?.emotion || m.metadata?.emotionResponseFor || null
+            }));
+            setMessages(formatted);
+          }
+        }
+      } catch (err) {
+        console.warn("Floating chat initialization offline/unauthenticated fallback:", err.message);
+      }
+    };
+
+    initChat();
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
       chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, loading]);
+
+  // Setup Web Speech Recognition for Audio Intake (STT)
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = selectedLang;
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInput((prev) => (prev ? prev + ' ' + transcript : transcript));
+        }
+        setIsListening(false);
+      };
+
+      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => setIsListening(false);
+
+      recognitionRef.current = recognition;
+    }
+  }, [selectedLang]);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Microphone speech recognition is not supported in this browser.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.lang = selectedLang;
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error('STT error:', err);
+        setIsListening(false);
+      }
+    }
+  };
+
+  // Text-to-Speech (TTS) Audio Output
+  const speakText = (text, msgId = null) => {
+    if (!('speechSynthesis' in window)) return;
+
+    window.speechSynthesis.cancel();
+
+    if (speakingMsgId === msgId && msgId !== null) {
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = selectedLang;
+    utterance.rate = 0.95;
+
+    const voices = window.speechSynthesis.getVoices();
+    const langVoice = voices.find(v => v.lang.startsWith(selectedLang.split('-')[0]));
+    if (langVoice) utterance.voice = langVoice;
+
+    utterance.onstart = () => { if (msgId) setSpeakingMsgId(msgId); };
+    utterance.onend = () => setSpeakingMsgId(null);
+    utterance.onerror = () => setSpeakingMsgId(null);
+
+    window.speechSynthesis.speak(utterance);
+  };
 
   const handleSend = async (textToSend) => {
     const text = textToSend || input;
     if (!text.trim() || loading) return;
+
+    const currentLangObj = LANGUAGES.find(l => l.code === selectedLang) || LANGUAGES[0];
 
     const userMsg = {
       id: Date.now(),
@@ -56,118 +196,68 @@ export default function FloatingChatboard() {
     if (!textToSend) setInput('');
     setLoading(true);
 
-    // Build history
-    const historyPayload = messages.slice(-6).map((m) => ({
-      role: m.sender === 'user' ? 'user' : 'model',
-      text: m.text
-    }));
+    let sId = activeSessionId;
+    if (!sId) {
+      try {
+        const createRes = await apiFetch('/sessions', { method: 'POST' });
+        if (createRes.data?._id) {
+          sId = createRes.data._id;
+          setActiveSessionId(sId);
+        }
+      } catch (err) {
+        console.warn("Session creation fallback:", err);
+      }
+    }
 
     try {
-      const res = await axios.post(`${API_BASE}/analyze`, {
-        case_id: 'WIDGET-' + Date.now(),
-        text: text.trim(),
-        history: historyPayload
-      });
+      let botText = "";
+      let detectedEmotion = "Calm";
 
-      const data = res.data;
-      if (data.crisis_flag) {
-        setIsCrisis(true);
+      if (sId) {
+        const resData = await apiFetch(`/sessions/${sId}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({
+            content: text.trim(),
+            language: currentLangObj.label
+          })
+        });
+
+        botText = resData.data?.content || "I am here to support you in every step.";
+        detectedEmotion = resData.emotionResult?.primaryEmotion || "Empathetic";
+      } else {
+        botText = "I am listening and here to support you. You are not alone, and taking things one moment at a time can help.";
       }
 
       const botReply = {
         id: Date.now() + 1,
         sender: 'bot',
-        text: data.reply || "I am here to support you. Please take a deep breath and share how you feel.",
+        text: botText,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        distressScore: data.distress_score,
-        band: data.sentiment_report?.band
+        emotion: detectedEmotion
       };
 
       setMessages((prev) => [...prev, botReply]);
-    } catch (err) {
-      console.warn("AI Service call offline/failed, using fallback context response:", err);
-      
-      const isHelplineReq = /helpline|number|call|phone|emergency/i.test(text);
-      const isCrisisReq = /suicide|kill|die|end life/i.test(text);
 
-      if (isCrisisReq) setIsCrisis(true);
-
-      let fallbackText = "I am listening and here to support you. You are not alone, and taking things one moment at a time can help.";
-      if (isHelplineReq) {
-        fallbackText = "Emergency Helplines (24/7 Toll-Free):\n- Tele-MANAS: 14416 or 1800-891-4416\n- Vandrevala Foundation: +91 9999 666 555\n- KIRAN Helpline: 1800-599-0019";
+      if (autoTts && botText) {
+        speakText(botText, botReply.id);
       }
-
-      const botReply = {
+    } catch (err) {
+      console.error("Floating Chat Send error:", err);
+      const fallbackReply = {
         id: Date.now() + 1,
         sender: 'bot',
-        text: fallbackText,
+        text: "I am here to support you. Please take a deep breath and share how you feel.",
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-      setMessages((prev) => [...prev, botReply]);
+      setMessages((prev) => [...prev, fallbackReply]);
     } finally {
       setLoading(false);
     }
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        setRecordingStatus('Transcribing voice...');
-        try {
-          const response = await fetch(`${API_BASE}/transcribe?lang=${selectedLang}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'audio/wav',
-              'X-Voice-Lang': selectedLang
-            },
-            body: audioBlob
-          });
-          const result = await response.json();
-          if (result.success && result.transcript) {
-            setInput(result.transcript);
-            handleSend(result.transcript);
-          } else {
-            setRecordingStatus('Could not transcribe audio. Please try speaking again.');
-            setTimeout(() => setRecordingStatus(''), 3000);
-          }
-        } catch (e) {
-          console.error("Audio transcription error:", e);
-          setRecordingStatus('Transcription service offline.');
-          setTimeout(() => setRecordingStatus(''), 3000);
-        } finally {
-          setIsRecording(false);
-        }
-      };
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-      setRecordingStatus('Listening... Speak into your microphone');
-    } catch (err) {
-      alert("Microphone access is required for voice input: " + err.message);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
-    }
-  };
-
   return (
     <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999, fontFamily: 'sans-serif' }}>
-      {/* Floating Toggle Button */}
+      {/* Floating Toggle Widget Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -175,12 +265,12 @@ export default function FloatingChatboard() {
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
-            backgroundColor: '#2563eb',
+            backgroundColor: '#1e3a8a',
             color: '#ffffff',
-            padding: '0.85rem 1.25rem',
+            padding: '0.85rem 1.35rem',
             borderRadius: '9999px',
-            boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.4), 0 8px 10px -6px rgba(37, 99, 235, 0.2)',
-            border: 'none',
+            boxShadow: '0 10px 25px -5px rgba(30, 58, 138, 0.4), 0 8px 10px -6px rgba(30, 58, 138, 0.2)',
+            border: '2px solid #3b82f6',
             cursor: 'pointer',
             fontWeight: '600',
             fontSize: '0.95rem',
@@ -188,37 +278,38 @@ export default function FloatingChatboard() {
           }}
           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
           onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+          title="Open AAROHAN Empathetic Support Chatboard"
         >
           <div style={{
             width: '28px',
             height: '28px',
             borderRadius: '50%',
             backgroundColor: '#ffffff',
-            color: '#2563eb',
+            color: '#1e3a8a',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.9rem',
+            fontSize: '0.95rem',
             fontWeight: 'bold'
           }}>
             💬
           </div>
-          <span>MindShield Support Chatboard</span>
+          <span>AAROHAN AI Support Assistant</span>
         </button>
       )}
 
-      {/* Floating Chat Widget Panel */}
+      {/* Expanded Floating Chat Widget Panel */}
       {isOpen && (
         <div
           style={{
-            width: '380px',
-            height: '560px',
-            maxHeight: '85vh',
+            width: '400px',
+            height: '580px',
+            maxHeight: '88vh',
             maxWidth: '92vw',
             backgroundColor: '#ffffff',
             borderRadius: '16px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-            border: '1px solid #e2e8f0',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #cbd5e1',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden'
@@ -228,7 +319,7 @@ export default function FloatingChatboard() {
           <div style={{
             backgroundColor: '#1e3a8a',
             color: '#ffffff',
-            padding: '1rem',
+            padding: '0.85rem 1rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between'
@@ -236,12 +327,12 @@ export default function FloatingChatboard() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1.25rem' }}>🛡️</span>
               <div>
-                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>MindShield AI Chatboard</h3>
-                <span style={{ fontSize: '0.7rem', color: '#93c5fd', display: 'block' }}>Empathetic Support & Grounding</span>
+                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>AAROHAN AI Chatboard</h3>
+                <span style={{ fontSize: '0.7rem', color: '#93c5fd', display: 'block' }}>Empathetic Support &amp; Consoling</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               {/* Language Selector */}
               <select
                 value={selectedLang}
@@ -252,17 +343,19 @@ export default function FloatingChatboard() {
                   border: '1px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: '6px',
                   padding: '2px 4px',
-                  fontSize: '0.75rem',
-                  outline: 'none'
+                  fontSize: '0.72rem',
+                  outline: 'none',
+                  cursor: 'pointer'
                 }}
               >
                 {LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code} style={{ color: '#000' }}>
-                    {l.name}
+                    {l.label}
                   </option>
                 ))}
               </select>
 
+              {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
                 style={{
@@ -271,22 +364,15 @@ export default function FloatingChatboard() {
                   color: '#ffffff',
                   fontSize: '1.25rem',
                   cursor: 'pointer',
-                  padding: '0 4px',
+                  padding: '0 6px',
                   lineHeight: '1'
                 }}
+                title="Close chatboard"
               >
                 ✕
               </button>
             </div>
           </div>
-
-          {/* Crisis Alert Banner inside chat */}
-          {isCrisis && (
-            <div style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '0.5rem 0.75rem', fontSize: '0.75rem', borderBottom: '1px solid #fca5a5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🚨 Crisis Alert: 24/7 Helpline <strong>14416 (Tele-MANAS)</strong></span>
-              <a href="tel:14416" style={{ backgroundColor: '#dc2626', color: '#fff', padding: '2px 6px', borderRadius: '4px', textDecoration: 'none', fontWeight: 'bold' }}>Call</a>
-            </div>
-          )}
 
           {/* Chat Messages */}
           <div style={{
@@ -303,14 +389,15 @@ export default function FloatingChatboard() {
                 key={m.id}
                 style={{
                   display: 'flex',
-                  justifyContent: m.sender === 'user' ? 'flex-end' : 'flex-start'
+                  flexDirection: 'column',
+                  alignItems: m.sender === 'user' ? 'flex-end' : 'flex-start'
                 }}
               >
                 <div style={{
-                  maxWidth: '82%',
+                  maxWidth: '85%',
                   padding: '0.65rem 0.85rem',
                   borderRadius: m.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                  backgroundColor: m.sender === 'user' ? '#2563eb' : '#ffffff',
+                  backgroundColor: m.sender === 'user' ? '#1e3a8a' : '#ffffff',
                   color: m.sender === 'user' ? '#ffffff' : '#1e293b',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                   border: m.sender === 'bot' ? '1px solid #e2e8f0' : 'none',
@@ -319,15 +406,24 @@ export default function FloatingChatboard() {
                   whiteSpace: 'pre-wrap'
                 }}>
                   <p style={{ margin: 0 }}>{m.text}</p>
-                  <span style={{
-                    display: 'block',
-                    textAlign: 'right',
-                    fontSize: '0.65rem',
-                    marginTop: '4px',
-                    opacity: 0.7
-                  }}>
-                    {m.time}
-                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '4px', fontSize: '0.68rem', color: '#64748b' }}>
+                  <span>{m.time} {m.sender === 'user' ? '(You)' : '(AAROHAN AI)'}</span>
+                  {m.emotion && EMOTION_ICONS[m.emotion] && (
+                    <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', padding: '1px 5px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '600' }}>
+                      {EMOTION_ICONS[m.emotion]}
+                    </span>
+                  )}
+                  {m.sender === 'bot' && (
+                    <button
+                      onClick={() => speakText(m.text, m.id)}
+                      style={{ background: 'none', border: 'none', color: speakingMsgId === m.id ? '#16a34a' : '#475569', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}
+                      title="Listen audio response"
+                    >
+                      {speakingMsgId === m.id ? '⏹️' : '🔊'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -335,7 +431,7 @@ export default function FloatingChatboard() {
             {loading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                 <div style={{ backgroundColor: '#ffffff', padding: '0.5rem 0.85rem', borderRadius: '12px', fontSize: '0.8rem', color: '#64748b', border: '1px solid #e2e8f0' }}>
-                  Thinking & analyzing support...
+                  AAROHAN AI is typing...
                 </div>
               </div>
             )}
@@ -343,20 +439,20 @@ export default function FloatingChatboard() {
             <div ref={chatBottomRef} />
           </div>
 
-          {/* Recording status prompt */}
-          {recordingStatus && (
-            <div style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', fontSize: '0.75rem', padding: '4px 12px', borderTop: '1px solid #bfdbfe', textAlign: 'center' }}>
-              {recordingStatus}
+          {/* Listening Prompt Banner */}
+          {isListening && (
+            <div style={{ backgroundColor: '#fef2f2', color: '#991b1b', fontSize: '0.78rem', padding: '4px 12px', borderTop: '1px solid #fca5a5', textAlign: 'center', fontWeight: '600' }}>
+              🔴 Listening in {LANGUAGES.find(l => l.code === selectedLang)?.label}... Speak into microphone.
             </div>
           )}
 
-          {/* Input Footer */}
+          {/* Footer Input Controls */}
           <div style={{ padding: '0.75rem', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button
-              onClick={isRecording ? stopRecording : startRecording}
+              onClick={toggleListening}
               style={{
-                backgroundColor: isRecording ? '#ef4444' : '#f1f5f9',
-                color: isRecording ? '#ffffff' : '#475569',
+                backgroundColor: isListening ? '#ef4444' : '#f1f5f9',
+                color: isListening ? '#ffffff' : '#475569',
                 border: '1px solid #cbd5e1',
                 borderRadius: '50%',
                 width: '36px',
@@ -368,7 +464,8 @@ export default function FloatingChatboard() {
                 fontSize: '1rem',
                 flexShrink: 0
               }}
-              title={isRecording ? 'Stop Recording' : 'Voice Input (Microphone)'}
+              title={isListening ? 'Stop Recording' : 'Voice Input (Microphone)'}
+              type="button"
             >
               🎙️
             </button>
@@ -378,7 +475,7 @@ export default function FloatingChatboard() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Type your message or concerns..."
+              placeholder={`Type or speak in ${LANGUAGES.find(l => l.code === selectedLang)?.label || 'your language'}...`}
               disabled={loading}
               style={{
                 flex: 1,
@@ -394,7 +491,7 @@ export default function FloatingChatboard() {
               onClick={() => handleSend()}
               disabled={loading || !input.trim()}
               style={{
-                backgroundColor: '#2563eb',
+                backgroundColor: '#1e3a8a',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '50%',
@@ -408,6 +505,7 @@ export default function FloatingChatboard() {
                 fontSize: '0.9rem',
                 flexShrink: 0
               }}
+              type="button"
             >
               ➔
             </button>

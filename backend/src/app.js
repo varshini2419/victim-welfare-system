@@ -37,6 +37,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const chatbotRoutes = require('./routes/chatbotRoutes');
 const victimRoutes = require('./routes/victimRoutes');
 const counselorRoutes = require('./routes/counselorRoutes');
+const voiceRoutes = require('./routes/voiceRoutes');
 
 const { authLimiter } = require('./middleware/rateLimitMiddleware');
 
@@ -50,6 +51,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/chatbot', chatbotRoutes);
 app.use('/api/v1/victim', victimRoutes);
 app.use('/api/v1/counselor', counselorRoutes);
+app.use('/api/v1/emergency', voiceRoutes);
 
 // Error Handling
 app.use(notFoundHandler);

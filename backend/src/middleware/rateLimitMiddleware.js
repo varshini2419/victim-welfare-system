@@ -36,9 +36,19 @@ const otpResendLimiter = rateLimit({
   }
 });
 
+const emergencyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 1,
+  message: {
+    success: false,
+    message: 'Emergency request already received. Please wait before trying again.'
+  }
+});
+
 module.exports = {
   authLimiter,
   chatLimiter,
   otpLimiter,
-  otpResendLimiter
+  otpResendLimiter,
+  emergencyLimiter
 };

@@ -1,6 +1,12 @@
 const asyncHandler = require('express-async-handler');
 const Assignment = require('../models/Assignment');
 const Counselor = require('../models/Counselor');
+const Notification = require('../models/Notification');
+const { decrypt } = require('../utils/encryption');
+const Case = require('../models/Case');
+const Victim = require('../models/Victim');
+const fs = require('fs');
+const path = require('path');
 
 // @desc    Get assigned counselor from the case record itself
 // @route   GET /api/v1/victim/counselor
@@ -37,8 +43,6 @@ const getMyCounselor = asyncHandler(async (req, res) => {
   });
 });
 
-const Notification = require('../models/Notification');
-
 // @desc    Request counselor support
 // @route   POST /api/v1/victim/request-support
 // @access  Private/Victim
@@ -67,11 +71,6 @@ const requestSupport = asyncHandler(async (req, res) => {
   });
 });
 
-const { decrypt } = require('../utils/encryption');
-const Case = require('../models/Case');
-const Victim = require('../models/Victim');
-const fs = require('fs');
-const path = require('path');
 
 // @desc    Get current victim profile
 // @route   GET /api/v1/victim/my-profile

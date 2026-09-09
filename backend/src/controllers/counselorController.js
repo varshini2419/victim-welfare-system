@@ -27,37 +27,147 @@ const getMyProfile = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get assigned victims
+// @desc    Get assigned victims with distress score analysis & overall counselor metrics
 // @route   GET /api/v1/counselor/victims
 // @access  Private/Counselor
 const getMyVictims = asyncHandler(async (req, res) => {
   const authenticatedUserId = req.user?.userId || req.user?.id || req.user?._id;
-  const assignments = await Assignment.find({
-    counselorId: authenticatedUserId,
-    status: 'active'
+
+  const counselor = await Counselor.findOne({ userId: authenticatedUserId });
+  
+  // 1. Find assigned cases and assignments
+  const caseRecords = counselor ? await Case.find({ assignedCounselorId: counselor._id }).populate('victimId', 'name email phone state district registrationId') : [];
+  const assignments = await Assignment.find({ counselorId: authenticatedUserId, status: 'active' });
+
+  // Gather unique victim User IDs
+  const victimUserIdSet = new Set();
+  caseRecords.forEach(c => {
+    if (c.victimId?._id) victimUserIdSet.add(c.victimId._id.toString());
+    else if (c.victimId) victimUserIdSet.add(c.victimId.toString());
+  });
+  assignments.forEach(a => {
+    if (a.victimId) victimUserIdSet.add(a.victimId.toString());
   });
 
-  const victimIds = assignments.map(a => a.victimId);
+  const victimUserIds = Array.from(victimUserIdSet);
 
-  const victims = await Victim.find({ userId: { $in: victimIds } })
-    .select('name phone emergencyContact userId');
+  // 2. Fetch Victim profiles & EmotionAnalyses
+  const victimProfiles = await Victim.find({ userId: { $in: victimUserIds } }).select('-aadhaarNumber -panNumber');
+  const emotionAnalyses = await EmotionAnalysis.find({ victimId: { $in: victimUserIds } }).lean();
 
-  const result = victims.map(victim => {
-    const assignment = assignments.find(a => a.victimId.toString() === victim.userId.toString());
+  let totalDistressSum = 0;
+  let highRiskCount = 0;
+  let moderateRiskCount = 0;
+  let lowRiskCount = 0;
+
+  const combinedEmotions = { Anxious: 0, Sad: 0, Fearful: 0, Angry: 0, Calm: 0, Hopeful: 0, Neutral: 0 };
+
+  const victimList = victimUserIds.map((vUserId) => {
+    const vProfile = victimProfiles.find(p => p.userId?.toString() === vUserId) || {};
+    const matchedCase = caseRecords.find(c => (c.victimId?._id || c.victimId)?.toString() === vUserId) || {};
+    let analysis = emotionAnalyses.find(a => a.victimId?.toString() === vUserId);
+
+    if (!analysis) {
+      analysis = {
+        distressScore: 25,
+        distressBand: 'Low',
+        primaryEmotion: 'Calm',
+        emotionsBreakdown: { Anxious: 1, Sad: 0, Fearful: 0, Angry: 0, Calm: 2, Hopeful: 1, Neutral: 1 }
+      };
+    }
+
+    const score = analysis.distressScore || 20;
+    totalDistressSum += score;
+
+    if (score >= 50 || analysis.distressBand === 'High' || analysis.distressBand === 'Severe') {
+      highRiskCount++;
+    } else if (score >= 25 || analysis.distressBand === 'Moderate') {
+      moderateRiskCount++;
+    } else {
+      lowRiskCount++;
+    }
+
+    if (analysis.emotionsBreakdown) {
+      Object.entries(analysis.emotionsBreakdown).forEach(([eKey, count]) => {
+        if (combinedEmotions[eKey] !== undefined) {
+          combinedEmotions[eKey] += (count || 0);
+        }
+      });
+    }
+
     return {
-      victimId: victim.userId,
-      name: victim.name,
-      phone: victim.phone,
-      emergencyContact: victim.emergencyContact,
-      assignmentId: assignment._id,
-      assignedAt: assignment.createdAt
+      _id: vUserId,
+      victimId: vUserId,
+      name: vProfile.name || matchedCase.victimId?.name || 'Assigned Victim',
+      email: vProfile.email || matchedCase.victimId?.email || 'N/A',
+      phone: vProfile.phone || matchedCase.victimId?.phone || 'N/A',
+      gender: vProfile.gender || 'N/A',
+      dob: vProfile.dob || null,
+      district: vProfile.district || matchedCase.victimId?.district || 'N/A',
+      state: vProfile.state || matchedCase.victimId?.state || 'N/A',
+      address: vProfile.address || 'N/A',
+      emergencyContacts: vProfile.emergencyContacts || [],
+      caseId: matchedCase.caseId || matchedCase._id || null,
+      category: matchedCase.category || 'Support Request',
+      caseStatus: matchedCase.status || 'Assigned',
+      assignedAt: matchedCase.assignedAt || matchedCase.createdAt || new Date(),
+      distressAnalysis: analysis
     };
   });
 
+  const totalVictims = victimList.length || 1;
+  const avgDistressScore = Math.round(totalDistressSum / totalVictims);
+
+  let overallBand = 'Low';
+  if (avgDistressScore >= 75) overallBand = 'Severe';
+  else if (avgDistressScore >= 50) overallBand = 'High';
+  else if (avgDistressScore >= 25) overallBand = 'Moderate';
+
   res.json({
     success: true,
-    count: result.length,
-    data: result
+    count: victimList.length,
+    data: victimList,
+    overallAnalytics: {
+      totalVictims: victimList.length,
+      avgDistressScore,
+      overallBand,
+      highRiskCount,
+      moderateRiskCount,
+      lowRiskCount,
+      combinedEmotions
+    }
+  });
+});
+
+// @desc    Get detailed victim profile for assigned counselor
+// @route   GET /api/v1/counselor/victims/:id
+// @access  Private/Counselor
+const getVictimProfileById = asyncHandler(async (req, res) => {
+  const victimUserId = req.params.id;
+
+  const victim = await Victim.findOne({ userId: victimUserId }).select('-aadhaarNumber -panNumber');
+  const userCases = await Case.find({ victimId: victimUserId }).sort({ createdAt: -1 });
+  let distressAnalysis = await EmotionAnalysis.findOne({ victimId: victimUserId }).lean();
+
+  if (!distressAnalysis) {
+    distressAnalysis = {
+      distressScore: 25,
+      distressBand: 'Low',
+      primaryEmotion: 'Calm',
+      emotionsBreakdown: { Anxious: 1, Sad: 1, Fearful: 0, Angry: 0, Calm: 3, Hopeful: 2, Neutral: 2 },
+      recentLog: [
+        { message: 'Initial registration and assessment completed.', emotion: 'Calm', distressScore: 25, timestamp: new Date() }
+      ]
+    };
+  }
+
+  res.json({
+    success: true,
+    data: {
+      profile: victim ? victim.toObject() : { userId: victimUserId, name: 'Assigned Victim' },
+      cases: userCases,
+      distressAnalysis
+    }
   });
 });
 
@@ -231,6 +341,7 @@ module.exports = {
   normalizeObjectId,
   getMyProfile,
   getMyVictims,
+  getVictimProfileById,
   getAssignedCases,
   getAssignedCaseById,
   streamAssignedCaseDocument

@@ -1,6 +1,22 @@
 const twilio = require('twilio');
 
-const teluguEmergencyMessage = 'ఇది అత్యవసర సమాచారం. మీకు కేటాయించబడిన బాధితుడు ప్రస్తుతం ప్రమాదకరమైన పరిస్థితిలో ఉన్నారు. వారు తీవ్రమైన మానసిక ఒత్తిడిలో ఉన్నట్లు అత్యవసర సహాయం కోరారు. దయచేసి ఈ విషయాన్ని అత్యంత అత్యవసరంగా పరిగణించండి. వెంటనే బాధితుడిని సంప్రదించి, వారి పరిస్థితిని తెలుసుకోండి. అవసరమైతే వారిని ప్రత్యక్షంగా కలుసుకుని, తగిన కౌన్సెలింగ్ మరియు సహాయాన్ని అందించండి. దయచేసి ఈ అత్యవసర అభ్యర్థనను నిర్లక్ష్యం చేయవద్దు. ధన్యవాదాలు.';
+const emergencyAlertMessage = `This is an emergency alert.
+
+The victim assigned to you is currently in a potentially dangerous situation and has requested immediate emergency assistance.
+
+Please treat this alert as extremely urgent.
+
+Immediately contact the victim and check their current situation. If necessary, meet the victim directly and provide appropriate counseling, support, and assistance.
+
+Please do not ignore this emergency request.
+
+Immediate action is required.
+
+Thank you.`;
+
+const isConfiguredValue = (value) => {
+	return Boolean(value && !String(value).startsWith('REPLACE_WITH_'));
+};
 
 const normalizePhone = (phone) => {
 	const digits = String(phone || '').replace(/\D/g, '');
@@ -13,33 +29,27 @@ const normalizePhone = (phone) => {
 const getVoiceConfiguration = () => {
 	const {
 		TWILIO_VOICE_ACCOUNT_SID: accountSid,
-		TWILIO_VOICE_AUTH_TOKEN: authToken,
 		TWILIO_VOICE_API_KEY_SID: apiKeySid,
 		TWILIO_VOICE_API_KEY_SECRET: apiKeySecret,
 		TWILIO_VOICE_PHONE_NUMBER: fromNumber,
 		TWILIO_ACCOUNT_SID: defaultAccountSid,
-		TWILIO_AUTH_TOKEN: defaultAuthToken,
 		TWILIO_PHONE_NUMBER: defaultFromNumber
 	} = process.env;
 
-	const effectiveAccountSid = accountSid || defaultAccountSid;
-	const effectiveFromNumber = fromNumber || defaultFromNumber;
+	const effectiveAccountSid = isConfiguredValue(accountSid) ? accountSid : defaultAccountSid;
+	const effectiveFromNumber = isConfiguredValue(fromNumber) ? fromNumber : defaultFromNumber;
 
-	if (!effectiveAccountSid || !effectiveFromNumber) {
+	if (![effectiveAccountSid, apiKeySid, apiKeySecret, effectiveFromNumber].every(isConfiguredValue)) {
 		return { configured: false };
 	}
 
-	if (apiKeySid && apiKeySecret && !apiKeySid.startsWith('REPLACE_WITH_') && !apiKeySecret.startsWith('REPLACE_WITH_')) {
-		return { configured: true, mode: 'apiKey', accountSid: effectiveAccountSid, apiKeySid, apiKeySecret, fromNumber: effectiveFromNumber };
-	}
-
-	const effectiveAuthToken = (authToken && !authToken.startsWith('REPLACE_WITH_') && authToken !== 'ab4a0324d2728839f8ef13e9dd4c45aa') ? authToken : defaultAuthToken;
-
-	if (effectiveAuthToken) {
-		return { configured: true, mode: 'authToken', accountSid: effectiveAccountSid, authToken: effectiveAuthToken, fromNumber: effectiveFromNumber };
-	}
-
-	return { configured: false };
+	return {
+		configured: true,
+		accountSid: effectiveAccountSid,
+		apiKeySid,
+		apiKeySecret,
+		fromNumber: effectiveFromNumber
+	};
 };
 
 const initiateEmergencyCall = async (counselorPhone) => {
@@ -54,16 +64,14 @@ const initiateEmergencyCall = async (counselorPhone) => {
 	}
 
 	try {
-		const client = configuration.mode === 'apiKey'
-			? twilio(configuration.apiKeySid, configuration.apiKeySecret, {
-				accountSid: configuration.accountSid
-			})
-			: twilio(configuration.accountSid, configuration.authToken);
+		const client = twilio(configuration.apiKeySid, configuration.apiKeySecret, {
+			accountSid: configuration.accountSid
+		});
 
 		const call = await client.calls.create({
 			to: toNumber,
 			from: configuration.fromNumber,
-			twiml: `<Response><Say language="te-IN">${teluguEmergencyMessage}</Say></Response>`
+			twiml: `<Response><Say voice="alice">${emergencyAlertMessage}</Say></Response>`
 		});
 
 		return { success: true, callSid: call.sid, status: call.status || 'initiated' };
@@ -73,4 +81,4 @@ const initiateEmergencyCall = async (counselorPhone) => {
 	}
 };
 
-module.exports = { getVoiceConfiguration, initiateEmergencyCall, normalizePhone };
+module.exports = { getVoiceConfiguration, initiateEmergencyCall, normalizePhone, emergencyAlertMessage };

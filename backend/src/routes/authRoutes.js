@@ -24,7 +24,7 @@ const { authLimiter, otpLimiter, otpResendLimiter } = require('../middleware/rat
 router.post('/register/victim', uploadDocuments.array('documents', 5), registerVictimValidation, registerVictim);
 router.post('/register/counselor', registerCounselorValidation, registerCounselor);
 router.post('/login', loginValidation, login);
-router.post('/login/victim', otpLimiter, victimLoginValidation, loginVictim);
+router.post('/login/victim', victimLoginValidation, loginVictim);
 router.post('/login/victim/send-otp', otpLimiter, victimResendOtpValidation, resendVictimOtp);
 router.post('/login/victim/resend-otp', otpResendLimiter, victimResendOtpValidation, resendVictimOtp);
 router.get('/me', protect, getMe);

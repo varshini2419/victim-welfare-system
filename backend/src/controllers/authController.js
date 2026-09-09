@@ -25,6 +25,7 @@ const normalizePhoneForComparison = (phone) => {
 const OTP_COOLDOWN_MS = parseInt(process.env.OTP_COOLDOWN_MS || String(60 * 1000));
 const OTP_REQUEST_WINDOW_MS = parseInt(process.env.OTP_REQUEST_WINDOW_MS || String(15 * 60 * 1000));
 const OTP_MAX_REQUESTS = parseInt(process.env.OTP_MAX_REQUESTS || String(3));
+const APPROVED_CASE_STATUSES = ['open', 'in-progress', 'assigned', 'resolved'];
 
 const clearVictimOtpFlowState = (user) => {
   user.otpHash = undefined;
@@ -409,7 +410,7 @@ const loginVictim = asyncHandler(async (req, res) => {
 
   // 1. Resolve Case
   const currentCase = await Case.findOne({ caseId }).populate('victimId');
-  if (!currentCase || !currentCase.victimId) {
+  if (!currentCase || !currentCase.victimId || !APPROVED_CASE_STATUSES.includes(currentCase.status)) {
     res.status(401);
     throw new Error('Invalid credentials.');
   }
@@ -496,10 +497,10 @@ const loginVictim = asyncHandler(async (req, res) => {
 const resendVictimOtp = asyncHandler(async (req, res) => {
   const { caseId, phone } = req.body;
   const normalizedSubmittedPhone = normalizePhoneForComparison(phone);
-  const currentCase = await Case.findOne({ caseId, status: { $in: ['open', 'in-progress', 'resolved'] } }).populate('victimId');
+  const currentCase = await Case.findOne({ caseId }).populate('victimId');
   const victim = currentCase ? await Victim.findOne({ userId: currentCase.victimId._id }) : null;
 
-  if (!currentCase || !victim || currentCase.victimId.status !== 'active' || normalizePhoneForComparison(victim.phone) !== normalizedSubmittedPhone) {
+  if (!currentCase || !APPROVED_CASE_STATUSES.includes(currentCase.status) || !victim || currentCase.victimId.status !== 'active' || normalizePhoneForComparison(victim.phone) !== normalizedSubmittedPhone) {
     res.status(401);
     throw new Error('Invalid credentials. Please verify your Case ID and registered phone number.');
   }

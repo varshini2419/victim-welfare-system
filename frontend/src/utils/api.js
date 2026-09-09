@@ -4,9 +4,22 @@ const api = axios.create({
   baseURL: '/api/v1',
 });
 
+const getPortalToken = () => {
+  const pathname = window.location.pathname;
+  const roleTokenKey = pathname.startsWith('/admin')
+    ? 'adminToken'
+    : pathname.startsWith('/counselor')
+      ? 'counselorToken'
+      : pathname.startsWith('/victim')
+        ? 'victimToken'
+        : null;
+
+  return (roleTokenKey && localStorage.getItem(roleTokenKey)) || localStorage.getItem('token');
+};
+
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getPortalToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

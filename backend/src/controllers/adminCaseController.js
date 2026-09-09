@@ -7,6 +7,7 @@ const Counter = require('../models/Counter');
 const { createOtp } = require('../services/otpService');
 const { sendApprovalSMS } = require('../services/smsService');
 
+const APPROVED_CASE_STATUSES = ['open', 'in-progress', 'assigned', 'resolved'];
 const isAuthorizedState = (victimUser, adminUser) => victimUser?.state === adminUser.state;
 
 // @desc    Upload required case documents before approval
@@ -139,11 +140,6 @@ const approveCase = asyncHandler(async (req, res) => {
     if (useTransaction) userQuery.session(session);
     const user = await userQuery;
     user.status = 'active';
-    user.otpHash = otp.hash;
-    user.otpExpiresAt = otp.expiresAt;
-    user.otpUsed = false;
-    user.otpAttempts = 0;
-    user.otpLockedUntil = null;
     user.otpDeliveryStatus = 'pending';
     user.lastOtpDeliveryError = undefined;
     await user.save(useTransaction ? { session } : undefined);
@@ -166,9 +162,7 @@ const approveCase = asyncHandler(async (req, res) => {
     }
 
     const smsResult = await sendApprovalSMS(victim.phone, victim.name, generatedCaseId, otp.value);
-    user.otpSendAttempts += 1;
     user.otpDeliveryStatus = smsResult.success ? 'sent' : 'failed';
-    user.otpSentAt = smsResult.success ? new Date() : user.otpSentAt;
     user.lastOtpDeliveryError = smsResult.success ? undefined : smsResult.error;
     await user.save();
 
@@ -218,7 +212,7 @@ const approveCase = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const resendCaseOtp = asyncHandler(async (req, res) => {
   const currentCase = await Case.findById(req.params.id).populate('victimId');
-  if (!currentCase || !currentCase.caseId || !['open', 'in-progress', 'resolved'].includes(currentCase.status)) {
+  if (!currentCase || !currentCase.caseId || !APPROVED_CASE_STATUSES.includes(currentCase.status)) {
     res.status(400);
     throw new Error('Only approved cases can resend an OTP.');
   }
@@ -243,21 +237,16 @@ const resendCaseOtp = asyncHandler(async (req, res) => {
   const smsResult = await sendApprovalSMS(victim.phone, victim.name, currentCase.caseId, otp.value);
 
   if (smsResult.success) {
-    // SMS delivered — now safe to replace the OTP in DB
-    user.otpHash = otp.hash;
-    user.otpExpiresAt = otp.expiresAt;
-    user.otpUsed = false;
-    user.otpAttempts = 0;
-    user.otpLockedUntil = null;
+    // Approval codes are delivery-only and cannot authenticate victim login.
     user.otpDeliveryStatus = 'sent';
-    user.otpSentAt = new Date();
+    user.otpSentAt = null;
     user.lastOtpDeliveryError = undefined;
-    user.otpSendAttempts += 1;
+    user.otpSendAttempts = 0;
   } else {
-    // SMS failed — keep existing OTP hash intact so victim can still use previous OTP
     user.otpDeliveryStatus = 'failed';
     user.lastOtpDeliveryError = smsResult.error;
-    user.otpSendAttempts += 1;
+    user.otpSentAt = null;
+    user.otpSendAttempts = 0;
   }
   await user.save();
 

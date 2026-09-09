@@ -33,6 +33,19 @@ const normalizeUserObject = (payload) => {
   };
 };
 
+const getStoredToken = () => {
+  const savedUser = localStorage.getItem('user');
+  let role = null;
+
+  try {
+    role = savedUser ? JSON.parse(savedUser)?.role : null;
+  } catch (err) {
+    role = null;
+  }
+
+  return (role && localStorage.getItem(`${role}Token`)) || localStorage.getItem('token') || null;
+};
+
 const clearLegacyAuthKeys = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
@@ -44,8 +57,16 @@ const clearLegacyAuthKeys = () => {
   sessionStorage.clear();
 };
 
+const clearActiveAuthKeys = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('role');
+  localStorage.removeItem('counselor');
+  sessionStorage.clear();
+};
+
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(() => localStorage.getItem('token') || null);
+  const [token, setToken] = useState(() => getStoredToken());
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
     if (!savedUser) return null;
@@ -138,10 +159,11 @@ export const AuthProvider = ({ children }) => {
       const decoded = decodeJwt(newToken);
       console.log('JWT ROLE:', decoded?.role);
 
-      clearLegacyAuthKeys();
+      clearActiveAuthKeys();
 
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.setItem(`${newUser.role}Token`, newToken);
 
       setToken(newToken);
       setUser(newUser);
@@ -176,10 +198,11 @@ export const AuthProvider = ({ children }) => {
       const decoded = decodeJwt(newToken);
       console.log('JWT ROLE:', decoded?.role);
 
-      clearLegacyAuthKeys();
+      clearActiveAuthKeys();
 
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.setItem(`${newUser.role}Token`, newToken);
 
       setToken(newToken);
       setUser(newUser);
@@ -211,6 +234,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    if (user?.role) {
+      localStorage.removeItem(`${user.role}Token`);
+    }
     clearLegacyAuthKeys();
     setToken(null);
     setUser(null);

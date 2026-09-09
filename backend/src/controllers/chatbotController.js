@@ -65,13 +65,13 @@ const sendMessage = asyncHandler(async (req, res) => {
   const victimId = req.user._id;
 
   try {
-    const { userMessage, aiMessage, emotionResult } = await chatbotService.processVictimMessage(sessionId, victimId, content, language || 'English');
+    const { userMessage, aiMessage, analysis } = await chatbotService.processVictimMessage(sessionId, victimId, content, language || 'English');
     
     res.status(200).json({
       success: true,
       data: aiMessage,
       userMessage,
-      emotionResult
+      analysis
     });
   } catch (error) {
     res.status(error.status || 500);

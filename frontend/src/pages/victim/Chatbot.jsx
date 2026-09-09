@@ -40,6 +40,8 @@ export default function Chatbot() {
   const [isListening, setIsListening] = useState(false);
   const [autoTts, setAutoTts] = useState(true);
   const [speakingMsgId, setSpeakingMsgId] = useState(null);
+  const [latestAnalysis, setLatestAnalysis] = useState(null);
+  const [showDashboard, setShowDashboard] = useState(true);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -185,7 +187,9 @@ export default function Chatbot() {
           content: m.content,
           timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isError: m.senderType === 'system' && m.isFlagged,
-          emotion: m.metadata?.emotion || null
+          emotion: m.metadata?.emotion || null,
+          sentiment: m.metadata?.sentiment?.label || null,
+          crisis: m.metadata?.crisis_flag || false
         }));
         setMessages(formatted);
       } catch (err) {
@@ -304,7 +308,18 @@ export default function Chatbot() {
       });
       
       const aiData = responseData.data;
-      const detectedEmotion = responseData.emotionResult?.primaryEmotion || 'Empathetic';
+
+      // Read REAL analysis from backend Gemini response
+      let msgEmotion = null;
+      let msgSentiment = null;
+      let isCrisis = false;
+
+      if (responseData.analysis) {
+        setLatestAnalysis(responseData.analysis);
+        msgEmotion = responseData.analysis.primary_emotion || null;
+        msgSentiment = responseData.analysis.sentiment?.label || null;
+        isCrisis = responseData.analysis.crisis_flag || false;
+      }
 
       const aiMsgObj = {
         id: aiData._id || Date.now().toString(),
@@ -312,7 +327,9 @@ export default function Chatbot() {
         content: aiData.content,
         timestamp: new Date(aiData.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isError: aiData.isFlagged,
-        emotionResponse: detectedEmotion
+        emotion: msgEmotion,
+        sentiment: msgSentiment,
+        crisis: isCrisis
       };
 
       setMessages((prev) => [...prev, aiMsgObj]);
@@ -457,9 +474,27 @@ export default function Chatbot() {
                         {msg.timestamp} {msg.role === 'user' ? '(You)' : '(AAROHAN AI)'}
                       </span>
 
+                      {/* Sentiment Badge */}
+                      {msg.sentiment && (
+                        <span className={`emotion-badge sentiment-${msg.sentiment}`} style={{
+                          backgroundColor: msg.sentiment === 'negative' ? '#fecaca' : msg.sentiment === 'positive' ? '#bbf7d0' : '#fef3c7',
+                          color: msg.sentiment === 'negative' ? '#991b1b' : msg.sentiment === 'positive' ? '#166534' : '#92400e',
+                          textTransform: 'capitalize'
+                        }}>
+                          {msg.sentiment}
+                        </span>
+                      )}
+
                       {/* Emotion Tag */}
-                      {msg.emotion && EMOTION_ICONS[msg.emotion] && (
-                        <span className="emotion-badge">{EMOTION_ICONS[msg.emotion]}</span>
+                      {msg.emotion && (
+                        <span className="emotion-badge">{EMOTION_ICONS[msg.emotion] || msg.emotion}</span>
+                      )}
+
+                      {/* Crisis Badge */}
+                      {msg.crisis && (
+                        <span className="emotion-badge" style={{ backgroundColor: '#fecaca', color: '#991b1b', fontWeight: '700' }}>
+                          ⚠️ CRISIS
+                        </span>
                       )}
 
                       {/* Audio Playback Button (TTS) */}
@@ -487,6 +522,137 @@ export default function Chatbot() {
               </div>
             )}
           </div>
+
+          {/* Live Distress Dashboard Panel */}
+          {showDashboard && latestAnalysis && (
+            <div className="distress-dashboard-panel" style={{
+              borderTop: '2px solid #e2e8f0',
+              padding: '0.75rem 1rem',
+              backgroundColor: latestAnalysis.crisis_flag ? '#fef2f2' : '#f1f5f9',
+              fontSize: '0.78rem'
+            }}>
+              {/* Crisis Alert */}
+              {latestAnalysis.crisis_flag && (
+                <div style={{
+                  backgroundColor: '#dc2626', color: '#fff', padding: '6px 10px',
+                  borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold',
+                  marginBottom: '8px', textAlign: 'center'
+                }}>
+                  ⚠️ CRISIS DETECTED — Immediate helplines: 112 | Tele-MANAS: 14416 | Women: 181
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                {/* Distress Gauge */}
+                <div style={{ flex: '1 1 160px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: '600', color: '#334155' }}>Distress Score</span>
+                    <span style={{
+                      backgroundColor: latestAnalysis.distress_score >= 75 ? '#ef4444' :
+                        latestAnalysis.distress_score >= 50 ? '#f97316' :
+                        latestAnalysis.distress_score >= 25 ? '#eab308' : '#22c55e',
+                      color: '#fff', padding: '2px 8px', borderRadius: '10px',
+                      fontWeight: '700', fontSize: '0.72rem'
+                    }}>
+                      {Math.round(latestAnalysis.distress_score)} — {
+                        latestAnalysis.distress_score >= 75 ? 'SEVERE' :
+                        latestAnalysis.distress_score >= 50 ? 'HIGH RISK' :
+                        latestAnalysis.distress_score >= 25 ? 'MODERATE' : 'STABLE'
+                      }
+                    </span>
+                  </div>
+                  <div style={{ width: '100%', height: '10px', backgroundColor: '#e2e8f0', borderRadius: '5px', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${Math.min(100, latestAnalysis.distress_score)}%`,
+                      height: '100%',
+                      backgroundColor: latestAnalysis.distress_score >= 75 ? '#ef4444' :
+                        latestAnalysis.distress_score >= 50 ? '#f97316' :
+                        latestAnalysis.distress_score >= 25 ? '#eab308' : '#22c55e',
+                      borderRadius: '5px',
+                      transition: 'width 0.6s ease'
+                    }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '2px', marginTop: '3px', height: '4px' }}>
+                    <div style={{ flex: 1, backgroundColor: '#22c55e', borderRadius: '2px' }} />
+                    <div style={{ flex: 1, backgroundColor: '#eab308', borderRadius: '2px' }} />
+                    <div style={{ flex: 1, backgroundColor: '#f97316', borderRadius: '2px' }} />
+                    <div style={{ flex: 1, backgroundColor: '#ef4444', borderRadius: '2px' }} />
+                  </div>
+                </div>
+
+                {/* Emotion Bars */}
+                <div style={{ flex: '1 1 180px' }}>
+                  <span style={{ fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Emotions</span>
+                  {(latestAnalysis.emotions || []).slice(0, 4).map((em, i) => {
+                    const emotionColors = { fear: '#ef4444', sadness: '#3b82f6', anger: '#f97316', joy: '#22c55e', disgust: '#a855f7', surprise: '#eab308', neutral: '#94a3b8' };
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
+                        <span style={{ width: '60px', textTransform: 'capitalize', color: '#475569', fontSize: '0.72rem' }}>
+                          {em.label}
+                        </span>
+                        <div style={{ flex: 1, height: '7px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${Math.round((em.score || 0) * 100)}%`,
+                            height: '100%',
+                            backgroundColor: emotionColors[em.label] || '#94a3b8',
+                            borderRadius: '4px',
+                            transition: 'width 0.5s ease'
+                          }} />
+                        </div>
+                        <span style={{ width: '30px', textAlign: 'right', color: '#64748b', fontSize: '0.7rem' }}>
+                          {Math.round((em.score || 0) * 100)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Info Chips */}
+                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
+                  {latestAnalysis.sentiment && (
+                    <span style={{
+                      backgroundColor: latestAnalysis.sentiment.label === 'negative' ? '#fecaca' :
+                        latestAnalysis.sentiment.label === 'positive' ? '#bbf7d0' : '#fef3c7',
+                      color: latestAnalysis.sentiment.label === 'negative' ? '#991b1b' :
+                        latestAnalysis.sentiment.label === 'positive' ? '#166534' : '#92400e',
+                      padding: '3px 8px', borderRadius: '10px', fontSize: '0.72rem',
+                      fontWeight: '600', textTransform: 'capitalize', textAlign: 'center'
+                    }}>
+                      {latestAnalysis.sentiment.label} ({Math.round((latestAnalysis.sentiment.score || 0) * 100)}%)
+                    </span>
+                  )}
+                  {latestAnalysis.language_detected && (
+                    <span style={{
+                      backgroundColor: '#e0f2fe', color: '#0369a1',
+                      padding: '3px 8px', borderRadius: '10px', fontSize: '0.72rem',
+                      fontWeight: '600', textAlign: 'center'
+                    }}>
+                      🌐 {latestAnalysis.language_detected.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowDashboard(false)}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.7rem', cursor: 'pointer', marginTop: '4px', padding: 0 }}
+              >
+                ▲ Hide analysis panel
+              </button>
+            </div>
+          )}
+
+          {!showDashboard && latestAnalysis && (
+            <button
+              onClick={() => setShowDashboard(true)}
+              style={{
+                width: '100%', background: '#f1f5f9', border: 'none', borderTop: '1px solid #e2e8f0',
+                color: '#64748b', fontSize: '0.72rem', cursor: 'pointer', padding: '4px 0', fontWeight: '500'
+              }}
+            >
+              ▼ Show distress analysis panel
+            </button>
+          )}
 
           {/* Voice Input Prompt when listening */}
           {isListening && (

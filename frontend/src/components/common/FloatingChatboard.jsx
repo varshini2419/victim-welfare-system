@@ -14,16 +14,123 @@ const LANGUAGES = [
   { code: 'gu-IN', langKey: 'gu', label: 'Gujarati (ગુજરાતી)' },
 ];
 
-const EMOTION_ICONS = {
-  Fearful: '😨 Fearful',
-  Anxious: '😟 Anxious',
-  Sad: '😢 Sad',
-  Angry: '😠 Angry',
-  Calm: '😌 Calm',
-  Hopeful: '🌟 Hopeful',
-  Neutral: '😐 Neutral'
+const EMOTION_COLORS = {
+  fear: '#ef4444', sadness: '#3b82f6', anger: '#f97316', joy: '#22c55e',
+  disgust: '#a855f7', surprise: '#eab308', neutral: '#94a3b8'
 };
 
+const EMOTION_EMOJIS = {
+  fear: '😨', sadness: '😢', anger: '😠', joy: '😊',
+  disgust: '🤢', surprise: '😲', neutral: '😐',
+  Fearful: '😨', Sad: '😢', Angry: '😠', Calm: '😌',
+  Anxious: '😟', Hopeful: '🌟', Neutral: '😐'
+};
+
+const SENTIMENT_COLORS = { positive: '#22c55e', neutral: '#eab308', negative: '#ef4444' };
+
+// ─── Distress Dashboard Panel ───────────────────────────
+function DistressDashboard({ analysis }) {
+  if (!analysis) return null;
+
+  const { distress_score = 0, distress_band = 'Low', sentiment, emotions = [], language_detected, crisis_flag } = analysis;
+
+  const gaugeColor = distress_score >= 75 ? '#ef4444' : distress_score >= 50 ? '#f97316' : distress_score >= 25 ? '#eab308' : '#22c55e';
+  const bandLabel = distress_score >= 75 ? 'SEVERE' : distress_score >= 50 ? 'HIGH RISK' : distress_score >= 25 ? 'MODERATE' : 'STABLE';
+
+  return (
+    <div style={{
+      borderTop: '1px solid #e2e8f0',
+      padding: '0.6rem 0.75rem',
+      backgroundColor: crisis_flag ? '#fef2f2' : '#f8fafc',
+      fontSize: '0.72rem'
+    }}>
+      {/* Crisis Alert Banner */}
+      {crisis_flag && (
+        <div style={{
+          backgroundColor: '#dc2626', color: '#fff', padding: '4px 8px',
+          borderRadius: '6px', fontSize: '0.7rem', fontWeight: 'bold',
+          marginBottom: '6px', textAlign: 'center'
+        }}>
+          ⚠️ CRISIS DETECTED — Helplines: 112 | 14416 | 181
+        </div>
+      )}
+
+      {/* Distress Gauge Bar */}
+      <div style={{ marginBottom: '6px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+          <span style={{ fontWeight: '600', color: '#334155' }}>Distress Score</span>
+          <span style={{
+            backgroundColor: gaugeColor, color: '#fff', padding: '1px 6px',
+            borderRadius: '8px', fontWeight: '700', fontSize: '0.68rem'
+          }}>
+            {Math.round(distress_score)} — {bandLabel}
+          </span>
+        </div>
+        <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{
+            width: `${Math.min(100, distress_score)}%`, height: '100%',
+            backgroundColor: gaugeColor, borderRadius: '4px',
+            transition: 'width 0.5s ease, background-color 0.5s ease'
+          }} />
+        </div>
+        {/* Color legend */}
+        <div style={{ display: 'flex', gap: '2px', marginTop: '2px', height: '3px' }}>
+          <div style={{ flex: 1, backgroundColor: '#22c55e', borderRadius: '2px' }} />
+          <div style={{ flex: 1, backgroundColor: '#eab308', borderRadius: '2px' }} />
+          <div style={{ flex: 1, backgroundColor: '#f97316', borderRadius: '2px' }} />
+          <div style={{ flex: 1, backgroundColor: '#ef4444', borderRadius: '2px' }} />
+        </div>
+      </div>
+
+      {/* Emotion Bars */}
+      {emotions.length > 0 && (
+        <div style={{ marginBottom: '6px' }}>
+          <span style={{ fontWeight: '600', color: '#334155', display: 'block', marginBottom: '3px' }}>Emotions</span>
+          {emotions.slice(0, 4).map((em, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+              <span style={{ width: '55px', textTransform: 'capitalize', color: '#475569', fontSize: '0.68rem' }}>
+                {EMOTION_EMOJIS[em.label] || '•'} {em.label}
+              </span>
+              <div style={{ flex: 1, height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${Math.round((em.score || 0) * 100)}%`, height: '100%',
+                  backgroundColor: EMOTION_COLORS[em.label] || '#94a3b8', borderRadius: '3px',
+                  transition: 'width 0.5s ease'
+                }} />
+              </div>
+              <span style={{ width: '28px', textAlign: 'right', color: '#64748b', fontSize: '0.65rem' }}>
+                {Math.round((em.score || 0) * 100)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Info Chips */}
+      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+        {sentiment && (
+          <span style={{
+            backgroundColor: SENTIMENT_COLORS[sentiment.label] || '#94a3b8', color: '#fff',
+            padding: '1px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '600',
+            textTransform: 'capitalize'
+          }}>
+            {sentiment.label} ({Math.round((sentiment.score || 0) * 100)}%)
+          </span>
+        )}
+        {language_detected && (
+          <span style={{
+            backgroundColor: '#e0f2fe', color: '#0369a1',
+            padding: '1px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '600'
+          }}>
+            🌐 {language_detected.toUpperCase()}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ─────────────────────────────────────
 export default function FloatingChatboard() {
   const [isOpen, setIsOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
@@ -43,6 +150,8 @@ export default function FloatingChatboard() {
   const [isListening, setIsListening] = useState(false);
   const [autoTts, setAutoTts] = useState(true);
   const [speakingMsgId, setSpeakingMsgId] = useState(null);
+  const [latestAnalysis, setLatestAnalysis] = useState(null);
+  const [showDashboard, setShowDashboard] = useState(true);
 
   const chatBottomRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -65,7 +174,7 @@ export default function FloatingChatboard() {
     return data;
   };
 
-  // 1. Fetch sessions & active message history on open
+  // Fetch sessions & active message history on open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -89,7 +198,9 @@ export default function FloatingChatboard() {
               sender: m.senderType === 'victim' ? 'user' : 'bot',
               text: m.content,
               time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              emotion: m.metadata?.emotion || m.metadata?.emotionResponseFor || null
+              emotion: m.metadata?.emotion || m.metadata?.emotionResponseFor || null,
+              sentiment: m.metadata?.sentiment?.label || null,
+              crisis: m.metadata?.crisis_flag || false
             }));
             setMessages(formatted);
           }
@@ -211,7 +322,9 @@ export default function FloatingChatboard() {
 
     try {
       let botText = "";
-      let detectedEmotion = "Calm";
+      let msgEmotion = null;
+      let msgSentiment = null;
+      let isCrisis = false;
 
       if (sId) {
         const resData = await apiFetch(`/sessions/${sId}/messages`, {
@@ -223,7 +336,14 @@ export default function FloatingChatboard() {
         });
 
         botText = resData.data?.content || "I am here to support you in every step.";
-        detectedEmotion = resData.emotionResult?.primaryEmotion || "Empathetic";
+
+        // Read REAL analysis from backend response
+        if (resData.analysis) {
+          setLatestAnalysis(resData.analysis);
+          msgEmotion = resData.analysis.primary_emotion || null;
+          msgSentiment = resData.analysis.sentiment?.label || null;
+          isCrisis = resData.analysis.crisis_flag || false;
+        }
       } else {
         botText = "I am listening and here to support you. You are not alone, and taking things one moment at a time can help.";
       }
@@ -233,7 +353,9 @@ export default function FloatingChatboard() {
         sender: 'bot',
         text: botText,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        emotion: detectedEmotion
+        emotion: msgEmotion,
+        sentiment: msgSentiment,
+        crisis: isCrisis
       };
 
       setMessages((prev) => [...prev, botReply]);
@@ -255,6 +377,7 @@ export default function FloatingChatboard() {
     }
   };
 
+  // ─── Render ────────────────────────────────────────────
   return (
     <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999, fontFamily: 'sans-serif' }}>
       {/* Floating Toggle Widget Button */}
@@ -302,9 +425,9 @@ export default function FloatingChatboard() {
       {isOpen && (
         <div
           style={{
-            width: '400px',
-            height: '580px',
-            maxHeight: '88vh',
+            width: '420px',
+            height: '620px',
+            maxHeight: '90vh',
             maxWidth: '92vw',
             backgroundColor: '#ffffff',
             borderRadius: '16px',
@@ -319,7 +442,7 @@ export default function FloatingChatboard() {
           <div style={{
             backgroundColor: '#1e3a8a',
             color: '#ffffff',
-            padding: '0.85rem 1rem',
+            padding: '0.7rem 0.85rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between'
@@ -327,12 +450,12 @@ export default function FloatingChatboard() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1.25rem' }}>🛡️</span>
               <div>
-                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>AAROHAN AI Chatboard</h3>
-                <span style={{ fontSize: '0.7rem', color: '#93c5fd', display: 'block' }}>Empathetic Support &amp; Consoling</span>
+                <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold' }}>AAROHAN AI Chatboard</h3>
+                <span style={{ fontSize: '0.65rem', color: '#93c5fd', display: 'block' }}>Empathetic Support &amp; Consoling</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               {/* Language Selector */}
               <select
                 value={selectedLang}
@@ -343,7 +466,7 @@ export default function FloatingChatboard() {
                   border: '1px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: '6px',
                   padding: '2px 4px',
-                  fontSize: '0.72rem',
+                  fontSize: '0.68rem',
                   outline: 'none',
                   cursor: 'pointer'
                 }}
@@ -355,6 +478,34 @@ export default function FloatingChatboard() {
                 ))}
               </select>
 
+              {/* Dashboard Toggle */}
+              <button
+                onClick={() => setShowDashboard(!showDashboard)}
+                style={{
+                  background: showDashboard ? 'rgba(255,255,255,0.25)' : 'none',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  color: '#fff', borderRadius: '4px',
+                  fontSize: '0.75rem', cursor: 'pointer', padding: '2px 5px'
+                }}
+                title={showDashboard ? 'Hide analysis panel' : 'Show analysis panel'}
+              >
+                📊
+              </button>
+
+              {/* TTS Toggle */}
+              <button
+                onClick={() => setAutoTts(!autoTts)}
+                style={{
+                  background: autoTts ? 'rgba(255,255,255,0.25)' : 'none',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  color: '#fff', borderRadius: '4px',
+                  fontSize: '0.75rem', cursor: 'pointer', padding: '2px 5px'
+                }}
+                title={autoTts ? 'Auto-speak ON' : 'Auto-speak OFF'}
+              >
+                {autoTts ? '🔊' : '🔇'}
+              </button>
+
               {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
@@ -362,9 +513,9 @@ export default function FloatingChatboard() {
                   background: 'none',
                   border: 'none',
                   color: '#ffffff',
-                  fontSize: '1.25rem',
+                  fontSize: '1.2rem',
                   cursor: 'pointer',
-                  padding: '0 6px',
+                  padding: '0 4px',
                   lineHeight: '1'
                 }}
                 title="Close chatboard"
@@ -377,11 +528,11 @@ export default function FloatingChatboard() {
           {/* Chat Messages */}
           <div style={{
             flex: 1,
-            padding: '1rem',
+            padding: '0.75rem',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
-            gap: '0.75rem',
+            gap: '0.6rem',
             backgroundColor: '#f8fafc'
           }}>
             {messages.map((m) => (
@@ -395,30 +546,60 @@ export default function FloatingChatboard() {
               >
                 <div style={{
                   maxWidth: '85%',
-                  padding: '0.65rem 0.85rem',
+                  padding: '0.6rem 0.8rem',
                   borderRadius: m.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                  backgroundColor: m.sender === 'user' ? '#1e3a8a' : '#ffffff',
+                  backgroundColor: m.sender === 'user' ? '#1e3a8a' : (m.crisis ? '#fef2f2' : '#ffffff'),
                   color: m.sender === 'user' ? '#ffffff' : '#1e293b',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                  border: m.sender === 'bot' ? '1px solid #e2e8f0' : 'none',
-                  fontSize: '0.85rem',
-                  lineHeight: '1.4',
+                  border: m.sender === 'bot' ? (m.crisis ? '1px solid #fca5a5' : '1px solid #e2e8f0') : 'none',
+                  fontSize: '0.82rem',
+                  lineHeight: '1.45',
                   whiteSpace: 'pre-wrap'
                 }}>
                   <p style={{ margin: 0 }}>{m.text}</p>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '4px', fontSize: '0.68rem', color: '#64748b' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '3px', fontSize: '0.65rem', color: '#64748b' }}>
                   <span>{m.time} {m.sender === 'user' ? '(You)' : '(AAROHAN AI)'}</span>
-                  {m.emotion && EMOTION_ICONS[m.emotion] && (
-                    <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', padding: '1px 5px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '600' }}>
-                      {EMOTION_ICONS[m.emotion]}
+
+                  {/* Sentiment Badge */}
+                  {m.sentiment && (
+                    <span style={{
+                      backgroundColor: SENTIMENT_COLORS[m.sentiment] || '#94a3b8',
+                      color: '#fff', padding: '1px 5px', borderRadius: '8px',
+                      fontSize: '0.62rem', fontWeight: '600', textTransform: 'capitalize'
+                    }}>
+                      {m.sentiment}
                     </span>
                   )}
+
+                  {/* Emotion Badge */}
+                  {m.emotion && (
+                    <span style={{
+                      backgroundColor: '#e0f2fe', color: '#0369a1',
+                      padding: '1px 5px', borderRadius: '8px',
+                      fontSize: '0.62rem', fontWeight: '600', textTransform: 'capitalize'
+                    }}>
+                      {EMOTION_EMOJIS[m.emotion] || '•'} {m.emotion}
+                    </span>
+                  )}
+
+                  {/* Crisis Badge */}
+                  {m.crisis && (
+                    <span style={{
+                      backgroundColor: '#dc2626', color: '#fff',
+                      padding: '1px 5px', borderRadius: '8px',
+                      fontSize: '0.62rem', fontWeight: '700'
+                    }}>
+                      ⚠️ CRISIS
+                    </span>
+                  )}
+
+                  {/* TTS button */}
                   {m.sender === 'bot' && (
                     <button
                       onClick={() => speakText(m.text, m.id)}
-                      style={{ background: 'none', border: 'none', color: speakingMsgId === m.id ? '#16a34a' : '#475569', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}
+                      style={{ background: 'none', border: 'none', color: speakingMsgId === m.id ? '#16a34a' : '#475569', cursor: 'pointer', fontSize: '0.72rem', padding: 0 }}
                       title="Listen audio response"
                     >
                       {speakingMsgId === m.id ? '⏹️' : '🔊'}
@@ -430,8 +611,8 @@ export default function FloatingChatboard() {
 
             {loading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                <div style={{ backgroundColor: '#ffffff', padding: '0.5rem 0.85rem', borderRadius: '12px', fontSize: '0.8rem', color: '#64748b', border: '1px solid #e2e8f0' }}>
-                  AAROHAN AI is typing...
+                <div style={{ backgroundColor: '#ffffff', padding: '0.5rem 0.85rem', borderRadius: '12px', fontSize: '0.78rem', color: '#64748b', border: '1px solid #e2e8f0' }}>
+                  <span style={{ animation: 'pulse 1.5s infinite' }}>AAROHAN AI is analyzing &amp; responding...</span>
                 </div>
               </div>
             )}
@@ -439,15 +620,18 @@ export default function FloatingChatboard() {
             <div ref={chatBottomRef} />
           </div>
 
+          {/* Live Distress Dashboard Panel */}
+          {showDashboard && <DistressDashboard analysis={latestAnalysis} />}
+
           {/* Listening Prompt Banner */}
           {isListening && (
-            <div style={{ backgroundColor: '#fef2f2', color: '#991b1b', fontSize: '0.78rem', padding: '4px 12px', borderTop: '1px solid #fca5a5', textAlign: 'center', fontWeight: '600' }}>
+            <div style={{ backgroundColor: '#fef2f2', color: '#991b1b', fontSize: '0.75rem', padding: '4px 10px', borderTop: '1px solid #fca5a5', textAlign: 'center', fontWeight: '600' }}>
               🔴 Listening in {LANGUAGES.find(l => l.code === selectedLang)?.label}... Speak into microphone.
             </div>
           )}
 
           {/* Footer Input Controls */}
-          <div style={{ padding: '0.75rem', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ padding: '0.6rem 0.75rem', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
             <button
               onClick={toggleListening}
               style={{
@@ -455,13 +639,13 @@ export default function FloatingChatboard() {
                 color: isListening ? '#ffffff' : '#475569',
                 border: '1px solid #cbd5e1',
                 borderRadius: '50%',
-                width: '36px',
-                height: '36px',
+                width: '34px',
+                height: '34px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                fontSize: '1rem',
+                fontSize: '0.95rem',
                 flexShrink: 0
               }}
               title={isListening ? 'Stop Recording' : 'Voice Input (Microphone)'}
@@ -481,8 +665,8 @@ export default function FloatingChatboard() {
                 flex: 1,
                 border: '1px solid #cbd5e1',
                 borderRadius: '20px',
-                padding: '0.5rem 0.85rem',
-                fontSize: '0.85rem',
+                padding: '0.45rem 0.8rem',
+                fontSize: '0.82rem',
                 outline: 'none'
               }}
             />
@@ -495,14 +679,14 @@ export default function FloatingChatboard() {
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '50%',
-                width: '36px',
-                height: '36px',
+                width: '34px',
+                height: '34px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
                 opacity: loading || !input.trim() ? 0.5 : 1,
-                fontSize: '0.9rem',
+                fontSize: '0.85rem',
                 flexShrink: 0
               }}
               type="button"

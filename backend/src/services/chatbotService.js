@@ -4,27 +4,51 @@ const EmotionAnalysis = require('../models/EmotionAnalysis');
 const aiService = require('./aiService');
 
 /**
- * Basic Safety Layer Check
- * Checks for immediate safety concerns based on simple keywords.
- * This is NOT a clinical diagnosis tool.
+ * Language code resolver — maps frontend dropdown labels to ISO codes
  */
-const performSafetyCheck = (message) => {
-  const safetyKeywords = [
-    'suicide', 'kill myself', 'want to die', 'end my life',
-    'hurt myself', 'harm myself', 'in danger', 'he is going to kill me',
-    'she is going to kill me', 'they are going to kill me'
-  ];
-  
-  const lowerMsg = message.toLowerCase();
-  return safetyKeywords.some(keyword => lowerMsg.includes(keyword));
+const LANG_MAP = {
+  'English': 'en', 'Telugu (తెలుగు)': 'te', 'Hindi (हिंदी)': 'hi',
+  'Tamil (தமிழ்)': 'ta', 'Kannada (కన్నడ)': 'kn', 'Malayalam (മലയാളം)': 'ml',
+  'Spanish (Español)': 'es', 'French (Français)': 'fr',
+  'Marathi (मराठी)': 'mr', 'Bengali (বাংলা)': 'bn', 'Gujarati (ગુજરાતી)': 'gu',
 };
 
-const getSafetyResponse = () => {
-  return "I am so sorry you are going through this. I am a chatbot and cannot provide immediate emergency help. Please reach out to your local emergency services (e.g., 112) or contact your assigned counselor immediately if you feel you are in danger or considering self-harm.";
+const resolveLangCode = (lang) => LANG_MAP[lang] || lang || 'en';
+
+/**
+ * Map Gemini emotion labels to EmotionAnalysis schema keys
+ */
+const EMOTION_LABEL_MAP = {
+  'fear': 'Fearful', 'sadness': 'Sad', 'anger': 'Angry',
+  'joy': 'Calm', 'disgust': 'Angry', 'surprise': 'Anxious',
+  'neutral': 'Neutral',
+  // Direct mappings (from fallback)
+  'Fearful': 'Fearful', 'Sad': 'Sad', 'Angry': 'Angry',
+  'Calm': 'Calm', 'Anxious': 'Anxious', 'Hopeful': 'Hopeful', 'Neutral': 'Neutral'
 };
 
+const mapEmotion = (label) => EMOTION_LABEL_MAP[label] || 'Neutral';
+
+/**
+ * Compute distress band from score
+ */
+const getDistressBand = (score) => {
+  if (score >= 75) return 'Severe';
+  if (score >= 50) return 'High';
+  if (score >= 25) return 'Moderate';
+  return 'Low';
+};
+
+/**
+ * Process a victim's chat message — full pipeline:
+ * 1. Keyword crisis check (instant)
+ * 2. Gemini unified analysis + response
+ * 3. Dual crisis override (keyword OR LLM crisis_flag)
+ * 4. Save real data to ChatMessage + EmotionAnalysis
+ * 5. Return structured result
+ */
 const processVictimMessage = async (sessionId, victimId, content, language = 'English') => {
-  // 1. Verify session exists and belongs to the victim (prevent IDOR)
+  // 1. Verify session exists and belongs to the victim
   const session = await ChatSession.findOne({ _id: sessionId, victimId, status: 'active' });
   if (!session) {
     const error = new Error('Session not found or not active');
@@ -32,138 +56,152 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
     throw error;
   }
 
-  // 2. Perform lightweight safety check & emotion analysis
-  const isFlagged = performSafetyCheck(content);
-  const emotionResult = aiService.analyzeEmotionAndDistress(content);
+  const langCode = resolveLangCode(language);
 
-  // 3. Save victim message with metadata
+  // 2. Run keyword crisis check FIRST (instant, no API needed)
+  const keywordCrisis = aiService.getKeywordCrisisFlag(content);
+
+  // 3. Get conversation history for context
+  const contextLimit = parseInt(process.env.CHAT_CONTEXT_MESSAGES) || 15;
+  const previousMessages = await ChatMessage.find({ sessionId: session._id })
+    .sort({ createdAt: -1 })
+    .limit(contextLimit);
+  previousMessages.reverse();
+
+  const conversationHistory = previousMessages.map(msg => ({
+    role: msg.senderType === 'victim' ? 'user' : 'assistant',
+    content: msg.content
+  }));
+
+  // 4. Call Gemini unified analysis (or smart fallback)
+  let analysis;
+  try {
+    analysis = await aiService.analyzeAndRespond(content, conversationHistory, language);
+  } catch (error) {
+    console.error('[chatbotService] AI analysis failed:', error.message);
+    analysis = aiService.getSmartFallback(content, language);
+  }
+
+  // 5. DUAL CRISIS CHECK — keyword OR LLM crisis_flag
+  const isCrisis = keywordCrisis || analysis.crisis_flag;
+
+  if (isCrisis) {
+    // Override LLM reply with FIXED safety message — never let LLM compose crisis words
+    analysis.reply = aiService.getSafetyMessage(analysis.language_detected || langCode);
+    analysis.crisis_flag = true;
+    analysis.distress_score = Math.max(analysis.distress_score, 90);
+  }
+
+  const distressBand = getDistressBand(analysis.distress_score);
+  const primaryEmotionRaw = analysis.emotions?.[0]?.label || 'neutral';
+  const primaryEmotion = mapEmotion(primaryEmotionRaw);
+
+  // 6. Save victim message with real metadata
   const userMessage = await ChatMessage.create({
     sessionId: session._id,
     senderType: 'victim',
     content,
-    isFlagged,
+    isFlagged: isCrisis,
     metadata: {
-      emotion: emotionResult.primaryEmotion,
-      distressScore: emotionResult.distressScore,
-      distressBand: emotionResult.distressBand,
-      language
+      emotion: primaryEmotion,
+      distressScore: analysis.distress_score,
+      distressBand,
+      language: langCode,
+      sentiment: analysis.sentiment,
+      emotions: analysis.emotions,
+      crisis_flag: isCrisis,
+      language_detected: analysis.language_detected,
+      source: analysis.source
     }
   });
 
-  // Update or create EmotionAnalysis record for counselor reports
+  // 7. Update EmotionAnalysis record for counselor reports
   try {
-    let analysis = await EmotionAnalysis.findOne({ victimId });
-    if (!analysis) {
-      analysis = new EmotionAnalysis({
+    let emotionDoc = await EmotionAnalysis.findOne({ victimId });
+    if (!emotionDoc) {
+      emotionDoc = new EmotionAnalysis({
         victimId,
         sessionId: session._id,
-        distressScore: emotionResult.distressScore,
-        distressBand: emotionResult.distressBand,
-        primaryEmotion: emotionResult.primaryEmotion,
+        distressScore: analysis.distress_score,
+        distressBand,
+        primaryEmotion,
         emotionsBreakdown: {
-          Anxious: 0,
-          Sad: 0,
-          Fearful: 0,
-          Angry: 0,
-          Calm: 0,
-          Hopeful: 0,
-          Neutral: 0
+          Anxious: 0, Sad: 0, Fearful: 0, Angry: 0,
+          Calm: 0, Hopeful: 0, Neutral: 0
         },
         recentLog: []
       });
     }
 
-    // Update distress score & emotion breakdown
-    analysis.distressScore = Math.round((analysis.distressScore + emotionResult.distressScore) / 2);
-    let band = 'Low';
-    if (analysis.distressScore >= 75) band = 'Severe';
-    else if (analysis.distressScore >= 50) band = 'High';
-    else if (analysis.distressScore >= 25) band = 'Moderate';
+    // Rolling average distress score (weighted toward recent)
+    emotionDoc.distressScore = Math.round(
+      (emotionDoc.distressScore * 0.4) + (analysis.distress_score * 0.6)
+    );
+    emotionDoc.distressBand = getDistressBand(emotionDoc.distressScore);
+    emotionDoc.primaryEmotion = primaryEmotion;
+    emotionDoc.sessionId = session._id;
 
-    analysis.distressBand = band;
-    analysis.primaryEmotion = emotionResult.primaryEmotion;
-    analysis.sessionId = session._id;
-
-    if (analysis.emotionsBreakdown[emotionResult.primaryEmotion] !== undefined) {
-      analysis.emotionsBreakdown[emotionResult.primaryEmotion] += 1;
+    // Increment emotion count
+    if (emotionDoc.emotionsBreakdown[primaryEmotion] !== undefined) {
+      emotionDoc.emotionsBreakdown[primaryEmotion] += 1;
     } else {
-      analysis.emotionsBreakdown[emotionResult.primaryEmotion] = 1;
+      emotionDoc.emotionsBreakdown[primaryEmotion] = 1;
     }
 
-    analysis.recentLog.unshift({
+    // Add to recent log
+    emotionDoc.recentLog.unshift({
       message: content.substring(0, 100),
-      emotion: emotionResult.primaryEmotion,
-      distressScore: emotionResult.distressScore,
+      emotion: primaryEmotion,
+      distressScore: analysis.distress_score,
       timestamp: new Date()
     });
-
-    if (analysis.recentLog.length > 20) {
-      analysis.recentLog = analysis.recentLog.slice(0, 20);
+    if (emotionDoc.recentLog.length > 20) {
+      emotionDoc.recentLog = emotionDoc.recentLog.slice(0, 20);
     }
 
-    await analysis.save();
+    await emotionDoc.save();
   } catch (err) {
-    console.error('Failed to update EmotionAnalysis record:', err.message);
+    console.error('[chatbotService] EmotionAnalysis update failed:', err.message);
   }
 
-  // 4. Update session lastMessageAt
+  // 8. Update session
   session.lastMessageAt = Date.now();
   if (session.title === 'New Conversation') {
     session.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
   }
   await session.save();
 
-  // 5. Determine AI Response
-  let aiContent = '';
-  let aiIsFlagged = false;
-  let senderType = 'ai';
-
-  if (isFlagged) {
-    aiContent = getSafetyResponse();
-    aiIsFlagged = true;
-    senderType = 'system';
-  } else {
-    try {
-      const contextLimit = parseInt(process.env.CHAT_CONTEXT_MESSAGES) || 15;
-      
-      const previousMessages = await ChatMessage.find({ sessionId: session._id })
-        .sort({ createdAt: -1 })
-        .limit(contextLimit);
-        
-      previousMessages.reverse();
-
-      const messagesArray = previousMessages.map(msg => ({
-        role: msg.senderType === 'victim' ? 'user' : 'assistant',
-        content: msg.content
-      }));
-
-      aiContent = await aiService.getChatbotResponse(messagesArray, {
-        emotion: emotionResult.primaryEmotion,
-        language
-      });
-      
-    } catch (error) {
-      console.error('[ChatbotService AI Error]:', error.message);
-      aiContent = aiService.getFallbackResponse(content, emotionResult.primaryEmotion, language);
-    }
-  }
-
-  // 6. Save AI/System Response
+  // 9. Save AI response
   const aiMessage = await ChatMessage.create({
     sessionId: session._id,
-    senderType,
-    content: aiContent,
-    isFlagged: aiIsFlagged,
+    senderType: isCrisis ? 'system' : 'ai',
+    content: analysis.reply,
+    isFlagged: isCrisis,
     metadata: {
-      emotionResponseFor: emotionResult.primaryEmotion,
-      language
+      emotionResponseFor: primaryEmotion,
+      language: langCode,
+      source: analysis.source
     }
   });
 
-  return { userMessage, aiMessage, emotionResult };
+  // 10. Return full structured result
+  return {
+    userMessage,
+    aiMessage,
+    analysis: {
+      sentiment: analysis.sentiment,
+      emotions: analysis.emotions,
+      distress_score: analysis.distress_score,
+      distress_band: distressBand,
+      crisis_flag: isCrisis,
+      language_detected: analysis.language_detected || langCode,
+      primary_emotion: primaryEmotionRaw,
+      primary_emotion_mapped: primaryEmotion,
+      source: analysis.source
+    }
+  };
 };
 
 module.exports = {
   processVictimMessage
 };
-

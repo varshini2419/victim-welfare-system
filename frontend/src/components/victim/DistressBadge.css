@@ -1,0 +1,17 @@
+﻿/* DistressBadge.css */
+.distress-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  color: white;
+  font-size: 0.85rem;
+}
+.distress-badge.low {
+  background-color: #28a745; /* green */
+}
+.distress-badge.moderate {
+  background-color: #ffc107; /* yellow */
+}
+.distress-badge.high {
+  background-color: #dc3545; /* red */
+}

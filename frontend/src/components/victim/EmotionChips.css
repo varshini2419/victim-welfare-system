@@ -1,0 +1,23 @@
+﻿/* EmotionChips.css */
+
+.emotion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.emotion-chip {
+  background-color: #f0f0f0;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #333;
+}
+
+.emotion-chip:hover {
+  background-color: #e0e0e0;
+}

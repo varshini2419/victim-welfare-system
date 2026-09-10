@@ -620,9 +620,6 @@ export default function FloatingChatboard() {
             <div ref={chatBottomRef} />
           </div>
 
-          {/* Live Distress Dashboard Panel */}
-          {showDashboard && <DistressDashboard analysis={latestAnalysis} />}
-
           {/* Listening Prompt Banner */}
           {isListening && (
             <div style={{ backgroundColor: '#fef2f2', color: '#991b1b', fontSize: '0.75rem', padding: '4px 10px', borderTop: '1px solid #fca5a5', textAlign: 'center', fontWeight: '600' }}>

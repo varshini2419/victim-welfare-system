@@ -1,0 +1,10 @@
+﻿.crisis-alert {
+  background-color: #fee2e2; /* light red */
+  color: #b91c1c; /* dark red text */
+  border: 1px solid #fca5a5;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  font-weight: 600;
+  text-align: center;
+}

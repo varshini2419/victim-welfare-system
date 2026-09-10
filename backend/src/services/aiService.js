@@ -154,7 +154,7 @@ const getSafetyMessage = (langCode = 'en') => {
 // ─────────────────────────────────────────────────────────────
 // 3. GEMINI API CALL — Unified analysis + response
 // ─────────────────────────────────────────────────────────────
-const GEMINI_SYSTEM_PROMPT = `You are AAROHAN AI, an empathetic support assistant for crime victims under the SC/ST Prevention of Atrocities Act support program.
+const AI_SYSTEM_PROMPT = `You are AAROHAN AI, an empathetic support assistant for crime victims under the SC/ST Prevention of Atrocities Act support program.
 
 For the victim's message, you must:
 1. Detect the language of the input text.
@@ -175,15 +175,19 @@ Return ONLY valid JSON, no other text, in exactly this schema:
 }`;
 
 const analyzeAndRespond = async (userText, conversationHistory = [], language = 'en') => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  console.log(`\n[aiService] --- NEW MESSAGE RECEIVED ---`);
+  console.log(`[aiService] Raw input text: "${userText}"`);
+  console.log(`[aiService] User preferred language: ${language}`);
+
+  const apiKey = process.env.GROK_API_KEY;
+  const model = process.env.GROK_MODEL || 'grok-beta';
 
   if (!apiKey) {
-    console.warn('[aiService] No GEMINI_API_KEY set — using smart fallback');
+    console.warn('[aiService] No GROK_API_KEY set — using smart fallback');
     return getSmartFallback(userText, language);
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://api.x.ai/v1/chat/completions`;
 
   // Build conversation context (last few turns for context)
   let contextText = '';
@@ -196,18 +200,17 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
   const userPrompt = `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`;
 
   const requestBody = {
-    system_instruction: {
-      parts: [{ text: GEMINI_SYSTEM_PROMPT }]
-    },
-    contents: [{
-      parts: [{ text: userPrompt }]
-    }],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 1024,
-      responseMimeType: 'application/json'
-    }
+    model: model,
+    messages: [
+      { role: 'system', content: AI_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: 0.7,
+    max_tokens: 1024,
+    response_format: { type: "text" }
   };
+
+  console.log(`[aiService] EXACT PROMPT BEING SENT TO GROK:\n--- SYSTEM PROMPT ---\n${AI_SYSTEM_PROMPT}\n--- USER PROMPT ---\n${userPrompt}\n-------------------`);
 
   try {
     const controller = new AbortController();
@@ -215,7 +218,10 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
       body: JSON.stringify(requestBody),
       signal: controller.signal
     });
@@ -224,18 +230,24 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
 
     if (!response.ok) {
       const errBody = await response.text().catch(() => '');
-      console.error(`[aiService] Gemini API error ${response.status}:`, errBody);
-      return getSmartFallback(userText, language);
+      console.error(`[aiService] GROK API EXCEPTION: ${response.status} - ${errBody}`);
+      const fallbackResponse = getSmartFallback(userText, language);
+      console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
+      return fallbackResponse;
     }
 
     const data = await response.json();
 
-    // Extract text from Gemini response
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Extract text from Grok response
+    const rawText = data?.choices?.[0]?.message?.content;
     if (!rawText) {
-      console.error('[aiService] Empty Gemini response:', JSON.stringify(data));
-      return getSmartFallback(userText, language);
+      console.error('[aiService] GROK API EXCEPTION: Empty response choices', JSON.stringify(data));
+      const fallbackResponse = getSmartFallback(userText, language);
+      console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
+      return fallbackResponse;
     }
+
+    console.log(`[aiService] GROK CALL SUCCESS. Reply Text:\n${rawText}`);
 
     // Parse JSON — handle potential markdown code fences
     let cleanText = rawText.trim();
@@ -245,24 +257,28 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
 
     const result = JSON.parse(cleanText);
 
-    // Validate required fields
-    return {
+    const finalResponse = {
       language_detected: result.language_detected || language,
       sentiment: result.sentiment || { label: 'neutral', score: 0.5 },
       emotions: Array.isArray(result.emotions) ? result.emotions : [{ label: 'neutral', score: 1.0 }],
       distress_score: typeof result.distress_score === 'number' ? Math.min(100, Math.max(0, result.distress_score)) : 20,
       crisis_flag: !!result.crisis_flag,
-      reply: result.reply || 'I am here to support you. Please share how you are feeling.',
-      source: 'gemini'
+      reply: result.reply || getSmartFallback(userText, language).reply,
+      source: 'grok'
     };
+
+    console.log(`[aiService] FULL RESPONSE PAYLOAD (Grok):`, JSON.stringify(finalResponse));
+    return finalResponse;
 
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.warn('[aiService] Gemini API timed out after 20s');
+      console.error('[aiService] GROK API EXCEPTION: Request timed out after 20s');
     } else {
-      console.error('[aiService] Gemini API error:', error.message);
+      console.error('[aiService] GROK API EXCEPTION:', error.message);
     }
-    return getSmartFallback(userText, language);
+    const fallbackResponse = getSmartFallback(userText, language);
+    console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
+    return fallbackResponse;
   }
 };
 
@@ -304,7 +320,11 @@ const FALLBACK_REPLIES = {
     ta: "உங்கள் வார்த்தைகளில் நேர்மறையைக் கேட்பது மகிழ்ச்சி! ஒவ்வொரு சிறிய அடியும் முக்கியமானது. உங்கள் வலிமையை நம்புங்கள்."
   },
   neutral: {
-    en: "Thank you for sharing with me. I am AAROHAN, your empathetic support assistant. I am here to listen and support you. How are you feeling today?",
+    en: [
+      "Thank you for sharing with me. I am AAROHAN, your empathetic support assistant. How are you feeling today?",
+      "I am here to listen. Please take your time and share whatever is on your mind.",
+      "I hear you. You are in a safe space. Would you like to talk more about how you are feeling?"
+    ],
     hi: "साझा करने के लिए धन्यवाद। मैं आरोहन हूं, आपका सहानुभूतिपूर्ण सहायक। आज आप कैसा महसूस कर रहे हैं?",
     te: "పంచుకున్నందుకు ధన్యవాదాలు. నేను ఆరోహన్, మీ సానుభూతి సహాయకుడిని. మీరు ఈరోజు ఎలా అనుభూతి చెందుతున్నారు?",
     ta: "பகிர்ந்ததற்கு நன்றி. நான் ஆரோஹன், உங்கள் அனுதாப உதவியாளர். இன்று நீங்கள் எப்படி உணர்கிறீர்கள்?"
@@ -384,7 +404,11 @@ const getSmartFallback = (userText, language = 'en') => {
 
   // Get language-appropriate reply
   const replySet = FALLBACK_REPLIES[primaryEmotion] || FALLBACK_REPLIES.neutral;
-  const reply = replySet[langCode] || replySet.en;
+  let reply = replySet[langCode] || replySet.en;
+  
+  if (Array.isArray(reply)) {
+    reply = reply[Math.floor(Math.random() * reply.length)];
+  }
 
   return {
     language_detected: langCode,

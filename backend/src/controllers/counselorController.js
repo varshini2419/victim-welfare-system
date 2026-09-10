@@ -247,6 +247,7 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
 
   // ── 1. Victim profile ──────────────────────────────────────────
   const victim = await Victim.findOne({ userId: victimId }).select('-aadhaarNumber -panNumber').lean();
+  const victimUser = await User.findById(victimId).select('profileImage').lean();
 
   // ── 2. Case info ───────────────────────────────────────────────
   const caseRecord = await Case.findOne({ victimId }).sort({ assignedAt: -1 }).lean();
@@ -399,16 +400,19 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
         crisisActive: hasTodayCrisis,
       };
 
+  const victimWithUser = victim ? { ...victim, userId: { ...victim.userId, profileImage: victimUser?.profileImage } } : { userId: { _id: victimId, profileImage: victimUser?.profileImage } };
+
   res.json({
     success: true,
     data: {
-      victim: victim || { userId: victimId },
+      victim: victimWithUser,
       caseInfo: caseRecord
         ? {
             caseId: caseRecord.caseId,
             category: caseRecord.category,
             status: caseRecord.status,
             assignedAt: caseRecord.assignedAt,
+            firDetails: caseRecord.firDetails,
           }
         : null,
       currentStatus,
@@ -471,6 +475,7 @@ const getAssignedCaseById = asyncHandler(async (req, res) => {
 
   const victimUserId = singleCase.victimId?._id || singleCase.victimId;
   const victim = victimUserId ? await Victim.findOne({ userId: victimUserId }).select('-aadhaarNumber -panNumber') : null;
+  const victimUser = victimUserId ? await User.findById(victimUserId).select('profileImage').lean() : null;
   let distressAnalysis = null;
   if (victimUserId) distressAnalysis = await EmotionAnalysis.findOne({ victimId: victimUserId }).lean();
 
@@ -486,11 +491,20 @@ const getAssignedCaseById = asyncHandler(async (req, res) => {
   const userInfo = caseData.victimId && typeof caseData.victimId === 'object' ? caseData.victimId : {};
   const victimData = victim ? victim.toObject() : {};
 
+  const victimResponse = victimData ? {
+    ...victimData,
+    email: userInfo.email || null,
+    state: userInfo.state || null,
+    district: userInfo.district || null,
+    registrationId: userInfo.registrationId || null,
+    userId: victimData.userId ? { ...victimData.userId, profileImage: victimUser?.profileImage } : { profileImage: victimUser?.profileImage }
+  } : null;
+
   res.json({
     success: true,
     data: {
       case: caseData,
-      victim: { ...victimData, email: userInfo.email || null, state: userInfo.state || null, district: userInfo.district || null, registrationId: userInfo.registrationId || null },
+      victim: victimResponse,
       distressAnalysis,
     },
   });

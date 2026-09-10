@@ -1,4 +1,5 @@
 const { body, validationResult } = require('express-validator');
+const { ANDHRA_PRADESH_DISTRICTS } = require('../constants/districts');
 
 const normalizePhoneForValidation = (phone) => {
   const digits = String(phone || '').replace(/\D/g, '');
@@ -21,12 +22,18 @@ const registerVictimValidation = [
   body('name').notEmpty().withMessage('Name is required'),
   body('phone').matches(/^\d{10}$/).withMessage('Enter a valid 10-digit mobile number'),
   body('state').notEmpty().withMessage('State is required'),
-  body('district').notEmpty().withMessage('District is required'),
+  body('district').notEmpty().withMessage('District is required').custom((value) => {
+    if (!ANDHRA_PRADESH_DISTRICTS.includes(value)) {
+      throw new Error('District must be a valid Andhra Pradesh district');
+    }
+    return true;
+  }),
   body('dob').notEmpty().withMessage('Date of Birth is required').isISO8601().withMessage('Invalid Date of Birth format'),
   body('gender').isIn(['Male', 'Female', 'Other', 'Prefer not to say']).withMessage('Invalid gender'),
   body('socialCategory').isIn(['SC', 'ST', 'OBC', 'EWS', 'General', 'Other', 'Prefer not to say']).withMessage('Invalid social category'),
   body('profession').notEmpty().withMessage('Profession is required'),
   body('address').notEmpty().withMessage('Address is required'),
+  body('pinCode').optional({ checkFalsy: true }).matches(/^\d{6}$/).withMessage('PIN Code must be exactly 6 digits'),
   body('category').notEmpty().withMessage('Case category is required'),
   body('description').notEmpty().withMessage('Case description is required'),
   body('aadhaar').optional({ checkFalsy: true }).matches(/^\d{12}$/).withMessage('Aadhaar number must contain exactly 12 digits'),
@@ -50,9 +57,21 @@ const registerVictimValidation = [
       if (fir.isFiled && (!fir.firNumber || !fir.policeStation)) {
         throw new Error('FIR Number and Police Station are required if FIR is filed');
       }
+      // Validate FIR district if provided
+      if (fir.firDistrict && typeof fir.firDistrict !== 'string') {
+        throw new Error('FIR District must be a string');
+      }
+      if (fir.firDistrict && !ANDHRA_PRADESH_DISTRICTS.includes(fir.firDistrict)) {
+        throw new Error('FIR District must be a valid Andhra Pradesh district');
+      }
       return true;
     } catch (e) {
-      throw new Error(e.message === 'FIR Number and Police Station are required if FIR is filed' ? e.message : 'Invalid FIR details format');
+      if (e.message === 'FIR Number and Police Station are required if FIR is filed' ||
+          e.message === 'FIR District must be a string' ||
+          e.message === 'FIR District must be a valid Andhra Pradesh district') {
+        throw new Error(e.message);
+      }
+      throw new Error('Invalid FIR details format');
     }
   }),
   body('consentToProcess').custom((value) => {

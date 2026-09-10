@@ -24,6 +24,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // Serve static profiles only
 app.use('/uploads/profiles', express.static(path.join(__dirname, '../uploads/profiles')));
+app.use('/uploads/victim-images', express.static(path.join(__dirname, '../uploads/victim-images')));
 // Removed generic /uploads to prevent direct access to /uploads/documents
 
 // Logger

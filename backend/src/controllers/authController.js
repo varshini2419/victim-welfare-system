@@ -105,7 +105,16 @@ const registerVictim = asyncHandler(async (req, res) => {
 
   try {
     if (req.body.emergencyContacts) emergencyContacts = JSON.parse(req.body.emergencyContacts);
-    if (req.body.firDetails) firDetails = JSON.parse(req.body.firDetails);
+    if (req.body.firDetails) {
+      const parsedFirDetails = JSON.parse(req.body.firDetails);
+      firDetails = {
+        isFiled: parsedFirDetails.isFiled || false,
+        firNumber: parsedFirDetails.firNumber || '',
+        policeStation: parsedFirDetails.policeStation || '',
+        firDistrict: parsedFirDetails.firDistrict || '',
+        firState: parsedFirDetails.firState || ''
+      };
+    }
     if (req.body.supportRequired) supportRequired = JSON.parse(req.body.supportRequired);
     if (req.body.immediateDanger === 'true' || req.body.immediateDanger === true) immediateDanger = true;
     if (req.body.consentToProcess === 'true' || req.body.consentToProcess === true) consentToProcess = true;
@@ -114,12 +123,25 @@ const registerVictim = asyncHandler(async (req, res) => {
     throw new Error('Invalid data format in request.');
   }
 
-  // Handle uploaded documents
-  const docs = req.files ? req.files.map(file => ({
+  // -------------------------------------------------------------------------
+  // Handle uploaded files.
+  // With multer.fields([...]) req.files is an OBJECT keyed by field name:
+  //   req.files = { victimImage: [file], documents: [file, file, ...] }
+  // It is NOT an array, and req.file is undefined.
+  // -------------------------------------------------------------------------
+  const uploadedImage = (req.files && req.files.victimImage && req.files.victimImage[0]) || null;
+  const uploadedDocs = (req.files && req.files.documents) || [];
+
+  const docs = uploadedDocs.map(file => ({
     fileName: file.filename,
     originalName: file.originalname,
     url: `/uploads/documents/${file.filename}` // Protected serving route will handle this
-  })) : [];
+  }));
+
+  let victimImagePath = null;
+  if (uploadedImage && uploadedImage.filename) {
+    victimImagePath = `/uploads/victim-images/${uploadedImage.filename}`;
+  }
 
   const userExists = await User.findOne({ email });
   if (userExists) {
@@ -164,6 +186,7 @@ const registerVictim = asyncHandler(async (req, res) => {
       status: 'pending',
       state,
       district,
+      profileImage: victimImagePath,
       registrationId: trackingId
     }], userOptions);
     createdUser = user;
@@ -177,6 +200,8 @@ const registerVictim = asyncHandler(async (req, res) => {
       socialCategory,
       profession,
       address,
+      pinCode: req.body.pinCode || undefined,
+      district: district || undefined,
       aadhaarNumber: aadhaar ? encrypt(aadhaar) : undefined,
       panNumber: pan ? encrypt(pan) : undefined,
       emergencyContacts: emergencyContacts || []
@@ -188,7 +213,13 @@ const registerVictim = asyncHandler(async (req, res) => {
       status: 'pending',
       category: category || 'Uncategorized',
       description,
-      firDetails,
+      firDetails: {
+        isFiled: firDetails.isFiled || false,
+        firNumber: firDetails.firNumber || '',
+        policeStation: firDetails.policeStation || '',
+        firDistrict: firDetails.firDistrict || '',
+        firState: firDetails.firState || ''
+      },
       supportRequired: supportRequired || [],
       documents: docs
     }], userOptions);
@@ -259,6 +290,16 @@ const registerVictim = asyncHandler(async (req, res) => {
           try { fs.unlinkSync(filePath); } catch (e) {}
         }
       });
+    }
+
+    // Cleanup victim image on registration error
+    if (victimImagePath) {
+      const fs = require('fs');
+      const path = require('path');
+      const imagePath = path.join(__dirname, '../../uploads/victim-images', path.basename(victimImagePath));
+      if (fs.existsSync(imagePath)) {
+        try { fs.unlinkSync(imagePath); } catch (e) {}
+      }
     }
 
     res.status(400);
@@ -670,4 +711,3 @@ module.exports = {
   getMe,
   getRegistrationStatus
 };
-

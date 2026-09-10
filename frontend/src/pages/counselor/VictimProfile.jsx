@@ -517,6 +517,7 @@ export default function VictimProfile() {
               ['Phone', d?.victim?.phone],
               ['District', d?.victim?.district],
               ['State', d?.victim?.state],
+              ['PIN Code', d?.victim?.pinCode],
               ['Social Category', d?.victim?.socialCategory],
             ].map(([label, val]) => (
               <div key={label}>
@@ -529,6 +530,20 @@ export default function VictimProfile() {
               <div style={{ fontWeight: 600, color: '#1e293b' }}>{display(d?.victim?.address)}</div>
             </div>
           </div>
+
+          {(d?.victim?.userId?.profileImage || d?.victim?.profileImage) && (
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.5rem' }}>Victim Image</div>
+              <img
+                src={`http://localhost:5000${d.victim.userId?.profileImage || d.victim.profileImage}`}
+                alt="Victim"
+                style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1.25rem' }}>
@@ -552,6 +567,29 @@ export default function VictimProfile() {
                 <span style={{ color: '#64748b' }}>Chat Sessions</span>
                 <strong style={{ color: '#1e293b' }}>{d?.sessionCount ?? 0}</strong>
               </div>
+              {d.caseInfo.firDetails?.firNumber && (
+                <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.3rem', fontWeight: 600 }}>FIR Details</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>FIR Number</span>
+                      <strong style={{ color: '#1e293b' }}>{display(d.caseInfo.firDetails.firNumber)}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Police Station</span>
+                      <strong style={{ color: '#1e293b' }}>{display(d.caseInfo.firDetails.policeStation)}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>FIR District</span>
+                      <strong style={{ color: '#1e293b' }}>{display(d.caseInfo.firDetails.firDistrict)}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>FIR State</span>
+                      <strong style={{ color: '#1e293b' }}>{display(d.caseInfo.firDetails.firState)}</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ color: '#64748b', fontSize: '0.88rem', fontStyle: 'italic' }}>No case information available</div>

@@ -38,6 +38,10 @@ const victimSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  pinCode: {
+    type: String,
+    trim: true,
+  },
   aadhaarNumber: {
     type: String, // Will store encrypted string
   },
@@ -46,6 +50,10 @@ const victimSchema = new mongoose.Schema({
   },
   dob: {
     type: Date,
+  },
+  district: {
+    type: String,
+    trim: true,
   }
 }, {
   timestamps: true

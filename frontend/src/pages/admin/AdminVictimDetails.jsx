@@ -216,7 +216,11 @@ export default function AdminVictimDetails() {
               </div>
               <div>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>District</p>
-                <p style={{ fontWeight: '500' }}>{victim.userId?.district || 'Not Specified'}</p>
+                <p style={{ fontWeight: '500' }}>{victim.district || victim.userId?.district || 'Not Specified'}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>PIN Code</p>
+                <p style={{ fontWeight: '500' }}>{victim.pinCode || 'Not provided'}</p>
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Related Person Details</p>
@@ -225,6 +229,20 @@ export default function AdminVictimDetails() {
                 )) : <p style={{ fontWeight: '500' }}>N/A</p>}
               </div>
             </div>
+
+            {victim.userId?.profileImage && (
+              <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>Victim Image</p>
+                <img
+                  src={`http://localhost:5000${victim.userId.profileImage}`}
+                  alt="Victim"
+                  style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {caseInfo && (
@@ -242,6 +260,18 @@ export default function AdminVictimDetails() {
                 <div>
                   <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>FIR Number</p>
                   <p style={{ fontWeight: '500' }}>{caseInfo.firDetails?.firNumber || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Police Station</p>
+                  <p style={{ fontWeight: '500' }}>{caseInfo.firDetails?.policeStation || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>FIR District</p>
+                  <p style={{ fontWeight: '500' }}>{caseInfo.firDetails?.firDistrict || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>FIR State</p>
+                  <p style={{ fontWeight: '500' }}>{caseInfo.firDetails?.firState || 'Not provided'}</p>
                 </div>
                 <div>
                   <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Category</p>

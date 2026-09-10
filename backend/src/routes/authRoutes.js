@@ -18,10 +18,15 @@ const {
   victimResendOtpValidation
 } = require('../validators/authValidator');
 
-const { uploadDocuments } = require('../middleware/uploadMiddleware');
+const { uploadVictimRegistration } = require('../middleware/uploadMiddleware');
 const { authLimiter, otpLimiter, otpResendLimiter } = require('../middleware/rateLimitMiddleware');
 
-router.post('/register/victim', uploadDocuments.array('documents', 5), registerVictimValidation, registerVictim);
+router.post(
+  '/register/victim',
+  uploadVictimRegistration,
+  registerVictimValidation,
+  registerVictim
+);
 router.post('/register/counselor', registerCounselorValidation, registerCounselor);
 router.post('/login', loginValidation, login);
 router.post('/login/victim', victimLoginValidation, loginVictim);
@@ -33,4 +38,3 @@ router.get('/me', protect, getMe);
 router.get('/registration-status/:registrationId', authLimiter, getRegistrationStatus);
 
 module.exports = router;
-

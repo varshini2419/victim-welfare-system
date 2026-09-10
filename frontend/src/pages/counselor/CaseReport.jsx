@@ -164,11 +164,11 @@ export default function CaseReport() {
               </div>
               <div>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>FIR district</p>
-                <p style={{ fontWeight: '500' }}>{display(caseInfo.firDetails?.district)}</p>
+                <p style={{ fontWeight: '500' }}>{display(caseInfo.firDetails?.firDistrict || caseInfo.firDetails?.district)}</p>
               </div>
               <div>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>FIR state</p>
-                <p style={{ fontWeight: '500' }}>{display(caseInfo.firDetails?.state)}</p>
+                <p style={{ fontWeight: '500' }}>{display(caseInfo.firDetails?.firState || caseInfo.firDetails?.state)}</p>
               </div>
             </div>
           </section>
@@ -210,10 +210,27 @@ export default function CaseReport() {
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>District</p>
                 <p style={{ fontWeight: '500' }}>{display(victim?.district)}</p>
               </div>
+              <div>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>PIN Code</p>
+                <p style={{ fontWeight: '500' }}>{display(victim?.pinCode)}</p>
+              </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Address</p>
                 <p style={{ fontWeight: '500' }}>{display(victim?.address)}</p>
               </div>
+              {(victim?.userId?.profileImage || victim?.profileImage) && (
+                <div style={{ gridColumn: '1 / -1', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>Victim Image</p>
+                  <img
+                    src={`http://localhost:5000${victim.userId?.profileImage || victim.profileImage}`}
+                    alt="Victim"
+                    style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
               <div style={{ gridColumn: '1 / -1' }}>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Emergency contacts</p>
                 {victim?.emergencyContacts?.length ? (

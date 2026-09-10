@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import api from '../../utils/api';
 import RegistrationSuccess from '../../components/public/RegistrationSuccess';
 import { Link } from 'react-router-dom';
+import { ANDHRA_PRADESH_DISTRICTS } from '../../constants/districts';
 
 export default function Register() {
   const [step, setStep] = useState(1);
@@ -13,15 +14,17 @@ export default function Register() {
   // Form State
   const [formData, setFormData] = useState({
     name: '', dob: '', gender: '', socialCategory: '', profession: '',
-    phone: '', email: '', address: '', state: '', district: '',
+    phone: '', email: '', address: '', state: '', district: '', pinCode: '',
     emergencyContacts: [{ name: '', relationship: '', phone: '' }],
     aadhaar: '', pan: '',
     category: '', description: '', supportRequired: [],
     firIsFiled: false, firNumber: '', policeStation: '', firDistrict: '', firState: '',
     immediateDanger: false, consentToProcess: false
   });
-  
+
   const [documents, setDocuments] = useState([]);
+  const [victimImage, setVictimImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -71,8 +74,35 @@ export default function Register() {
       setError('You can only upload a maximum of 5 documents.');
       return;
     }
-    
+
     setDocuments(prev => [...prev, ...validFiles]);
+  };
+
+  const handleVictimImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const isValidType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+    const isValidSize = file.size <= 2 * 1024 * 1024; // 2MB
+
+    if (!isValidType) {
+      setError('Invalid file type. Only JPG, PNG, and WebP are allowed for victim image.');
+      return;
+    }
+
+    if (!isValidSize) {
+      setError('Image size must not exceed 2MB.');
+      return;
+    }
+
+    setVictimImage(file);
+    setImagePreview(URL.createObjectURL(file));
+    setError('');
+  };
+
+  const handleRemoveVictimImage = () => {
+    setVictimImage(null);
+    setImagePreview(null);
   };
 
   const removeFile = (index) => {
@@ -86,6 +116,7 @@ export default function Register() {
     const isPhoneValid = (p) => /^\d{10}$/.test(p);
     const isAadhaarValid = (a) => /^\d{12}$/.test(a);
     const isPanValid = (p) => /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i.test(p);
+    const isPinCodeValid = (p) => /^\d{6}$/.test(p);
 
     if (step === 1) {
       if (!formData.name || !formData.dob || !formData.gender || !formData.socialCategory || !formData.profession) {
@@ -109,6 +140,14 @@ export default function Register() {
         setError('Enter a valid 10-digit mobile number for Victim Phone.');
         return false;
       }
+      if (formData.pinCode && !isPinCodeValid(formData.pinCode)) {
+        setError('PIN Code must be exactly 6 digits.');
+        return false;
+      }
+      if (formData.district && !ANDHRA_PRADESH_DISTRICTS.includes(formData.district)) {
+        setError('Please select a valid Andhra Pradesh district.');
+        return false;
+      }
       for (const ec of formData.emergencyContacts) {
         if (ec.name || ec.relationship || ec.phone) {
           if (!ec.name || !ec.relationship || !ec.phone) {
@@ -128,6 +167,10 @@ export default function Register() {
       }
       if (formData.firIsFiled && (!formData.firNumber || !formData.policeStation)) {
         setError('FIR Number and Police Station are required if an FIR is filed.');
+        return false;
+      }
+      if (formData.firIsFiled && formData.firDistrict && !ANDHRA_PRADESH_DISTRICTS.includes(formData.firDistrict)) {
+        setError('Please select a valid Andhra Pradesh district for FIR.');
         return false;
       }
     } else if (step === 5) {
@@ -165,8 +208,10 @@ export default function Register() {
       data.append('address', formData.address);
       data.append('state', formData.state);
       data.append('district', formData.district);
+      if (formData.pinCode) data.append('pinCode', formData.pinCode);
       if (formData.aadhaar) data.append('aadhaar', formData.aadhaar);
       if (formData.pan) data.append('pan', formData.pan);
+      if (victimImage) data.append('victimImage', victimImage);
 
       const validEmergencyContacts = formData.emergencyContacts.filter(ec => ec.name && ec.relationship && ec.phone);
       data.append('emergencyContacts', JSON.stringify(validEmergencyContacts));
@@ -179,8 +224,8 @@ export default function Register() {
         isFiled: formData.firIsFiled,
         firNumber: formData.firNumber,
         policeStation: formData.policeStation,
-        district: formData.firDistrict,
-        state: formData.firState
+        firDistrict: formData.firDistrict,
+        firState: formData.firState
       }));
 
       data.append('immediateDanger', formData.immediateDanger);
@@ -279,9 +324,51 @@ export default function Register() {
                 </div>
               </div>
 
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '2rem 0 1rem', color: '#111827', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Victim Image</h2>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>Upload a recent photograph of the victim (JPG, PNG, WebP - Max 2MB).</p>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                {imagePreview ? (
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <img
+                      src={imagePreview}
+                      alt="Victim preview"
+                      style={{ width: '150px', height: '150px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveVictimImage}
+                      style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ border: '2px dashed #d1d5db', padding: '2rem', textAlign: 'center', borderRadius: '8px', backgroundColor: '#f9fafb' }}>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleVictimImageChange} style={{ display: 'none' }} id="victim-image-upload" />
+                    <label htmlFor="victim-image-upload" style={{ display: 'inline-block', padding: '0.75rem 1.5rem', backgroundColor: '#e5e7eb', color: '#374151', borderRadius: '6px', fontWeight: '500', cursor: 'pointer' }}>
+                      Upload Victim Image
+                    </label>
+                  </div>
+                )}
+              </div>
+
               <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '2rem 0 1rem', color: '#111827', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Identity (Optional)</h2>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>Information provided here is encrypted and securely stored.</p>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={labelStyle}>Aadhaar Number</label>
@@ -317,10 +404,20 @@ export default function Register() {
                 </div>
                 <div>
                   <label style={labelStyle}>District *</label>
-                  <input style={inputStyle} type="text" name="district" value={formData.district} onChange={handleChange} required />
+                  <select style={inputStyle} name="district" value={formData.district} onChange={handleChange} required>
+                    <option value="">Select District</option>
+                    {ANDHRA_PRADESH_DISTRICTS.map(district => (
+                      <option key={district} value={district}>{district}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-              
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={labelStyle}>PIN Code</label>
+                <input style={inputStyle} type="text" name="pinCode" value={formData.pinCode} onChange={handleChange} placeholder="6-digit PIN Code" maxLength="6" />
+              </div>
+
               <label style={labelStyle}>Full Address *</label>
               <textarea style={{...inputStyle, resize: 'vertical', minHeight: '80px'}} name="address" value={formData.address} onChange={handleChange} required />
 
@@ -408,7 +505,12 @@ export default function Register() {
                     </div>
                     <div>
                       <label style={labelStyle}>FIR District</label>
-                      <input style={inputStyle} type="text" name="firDistrict" value={formData.firDistrict} onChange={handleChange} />
+                      <select style={inputStyle} name="firDistrict" value={formData.firDistrict} onChange={handleChange}>
+                        <option value="">Select District</option>
+                        {ANDHRA_PRADESH_DISTRICTS.map(district => (
+                          <option key={district} value={district}>{district}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label style={labelStyle}>FIR State</label>
@@ -462,12 +564,24 @@ export default function Register() {
                   <div><span style={{ color: '#6b7280' }}>Profession:</span> <strong>{formData.profession}</strong></div>
                 </div>
 
+                {imagePreview && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>Victim Image:</div>
+                    <img
+                      src={imagePreview}
+                      alt="Victim preview"
+                      style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e5e7eb' }}
+                    />
+                  </div>
+                )}
+
                 <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#374151', marginBottom: '1rem', borderBottom: '1px solid #d1d5db', paddingBottom: '0.5rem' }}>Contact & Location</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
                   <div><span style={{ color: '#6b7280' }}>Mobile:</span> <strong>{formData.phone}</strong></div>
                   <div><span style={{ color: '#6b7280' }}>Email:</span> <strong>{formData.email}</strong></div>
                   <div><span style={{ color: '#6b7280' }}>State:</span> <strong>{formData.state}</strong></div>
                   <div><span style={{ color: '#6b7280' }}>District:</span> <strong>{formData.district}</strong></div>
+                  <div><span style={{ color: '#6b7280' }}>PIN Code:</span> <strong>{formData.pinCode || 'Not provided'}</strong></div>
                   <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#6b7280' }}>Address:</span> <strong>{formData.address}</strong></div>
                   {formData.emergencyContacts.map((ec, i) => ec.name && (
                     <div key={i} style={{ gridColumn: '1 / -1', marginTop: '0.5rem', backgroundColor: '#e5e7eb', padding: '0.5rem', borderRadius: '4px' }}>
@@ -493,6 +607,8 @@ export default function Register() {
                       <div style={{ marginTop: '0.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                         <div><span style={{ color: '#6b7280' }}>Number:</span> <strong>{formData.firNumber}</strong></div>
                         <div><span style={{ color: '#6b7280' }}>Station:</span> <strong>{formData.policeStation}</strong></div>
+                        <div><span style={{ color: '#6b7280' }}>District:</span> <strong>{formData.firDistrict || 'Not provided'}</strong></div>
+                        <div><span style={{ color: '#6b7280' }}>State:</span> <strong>{formData.firState || 'Not provided'}</strong></div>
                       </div>
                     )}
                   </div>

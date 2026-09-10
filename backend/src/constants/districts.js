@@ -1,0 +1,33 @@
+// Andhra Pradesh Districts List
+const ANDHRA_PRADESH_DISTRICTS = [
+  'Alluri Sitharama Raju',
+  'Anakapalli',
+  'Ananthapuramu',
+  'Annamayya',
+  'Bapatla',
+  'Chittoor',
+  'Dr. B.R. Ambedkar Konaseema',
+  'East Godavari',
+  'Eluru',
+  'Guntur',
+  'Kakinada',
+  'Krishna',
+  'Kurnool',
+  'Nandyal',
+  'NTR',
+  'Palnadu',
+  'Parvathipuram Manyam',
+  'Prakasam',
+  'Sri Potti Sriramulu Nellore',
+  'Sri Sathya Sai',
+  'Srikakulam',
+  'Tirupati',
+  'Visakhapatnam',
+  'Vizianagaram',
+  'West Godavari',
+  'YSR Kadapa'
+];
+
+module.exports = {
+  ANDHRA_PRADESH_DISTRICTS
+};

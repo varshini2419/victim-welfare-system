@@ -55,6 +55,16 @@ router.get('/documents/:filename', streamAdminDocument);
 
 // Alert management routes
 const { getAlerts, acknowledgeAlert, resolveAlert } = require('../controllers/adminAlertController');
+const {
+  getWelfareOfficers,
+  getWelfareOfficer,
+  createWelfareOfficer,
+  updateWelfareOfficer,
+  setWelfareOfficerStatus,
+  getWelfareStats,
+  getEligibleWelfareVictims,
+  assignVictimToWelfareOfficer
+} = require('../controllers/adminWelfareController');
 router.get('/alerts', getAlerts);
 router.patch('/alerts/:id/acknowledge', acknowledgeAlert);
 router.patch('/alerts/:id/resolve', resolveAlert);
@@ -62,5 +72,15 @@ router.patch('/alerts/:id/resolve', resolveAlert);
 // Reports routes
 const { getGeographicReports } = require('../controllers/adminReportsController');
 router.get('/reports/geographic', getGeographicReports);
+
+// Welfare officer management remains admin-only through the middleware above.
+router.get('/welfare-officers/stats', getWelfareStats);
+router.get('/welfare-officers', getWelfareOfficers);
+router.post('/welfare-officers', createWelfareOfficer);
+router.get('/welfare-officers/:id', getWelfareOfficer);
+router.put('/welfare-officers/:id', updateWelfareOfficer);
+router.patch('/welfare-officers/:id/status', setWelfareOfficerStatus);
+router.get('/welfare-officers/:id/eligible-victims', getEligibleWelfareVictims);
+router.post('/welfare-officers/:id/assignments', assignVictimToWelfareOfficer);
 
 module.exports = router;

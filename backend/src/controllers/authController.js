@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const Victim = require('../models/Victim');
 const Counselor = require('../models/Counselor');
+const WelfareStaff = require('../models/WelfareStaff');
 const { generateToken } = require('../utils/jwt');
 
 const mongoose = require('mongoose');
@@ -402,6 +403,9 @@ const login = asyncHandler(async (req, res) => {
     profileName = counselor ? counselor.name : '';
   } else if (user.role === 'admin') {
     profileName = 'Administrator';
+  } else if (user.role === 'WELFARE_OFFICER') {
+    const welfareStaff = await WelfareStaff.findOne({ userId: user._id });
+    profileName = welfareStaff ? welfareStaff.name : '';
   }
 
   res.json({
@@ -427,6 +431,8 @@ const getMe = asyncHandler(async (req, res) => {
     profile = await Victim.findOne({ userId: user._id });
   } else if (user.role === 'counselor') {
     profile = await Counselor.findOne({ userId: user._id });
+  } else if (user.role === 'WELFARE_OFFICER') {
+    profile = await WelfareStaff.findOne({ userId: user._id }).select('-__v');
   }
 
   res.json({

@@ -35,7 +35,7 @@ const getDashboard = asyncHandler(async (req, res) => {
   
   const victimIds = await getScopedUserIds('victim', state);
   const counselorIds = await getScopedUserIds('counselor', state);
-  const welfareIds = await getScopedUserIds('welfare', state); // Assuming role 'welfare'
+  const welfareIds = await getScopedUserIds('WELFARE_OFFICER', state);
 
   const Alert = require('../models/Alert');
   const AuditLog = require('../models/AuditLog');

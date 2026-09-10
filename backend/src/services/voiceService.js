@@ -14,6 +14,12 @@ Immediate action is required.
 
 Thank you.`;
 
+const automaticRiskMessage = `This is an automated counselor risk alert.
+
+An assigned victim has generated a high-priority wellbeing risk event. Please review the victim's case in the counselor dashboard and take appropriate professional action.
+
+This call does not contain private chatbot conversation content.`;
+
 const isConfiguredValue = (value) => {
 	return Boolean(value && !String(value).startsWith('REPLACE_WITH_'));
 };
@@ -52,7 +58,11 @@ const getVoiceConfiguration = () => {
 	};
 };
 
-const initiateEmergencyCall = async (counselorPhone) => {
+const getCallMessage = (callType) => callType === 'VICTIM_SOS'
+	? emergencyAlertMessage
+	: automaticRiskMessage;
+
+const initiateEmergencyCall = async (counselorPhone, options = {}) => {
 	const configuration = getVoiceConfiguration();
 	if (!configuration.configured) {
 		return { success: false, code: 'VOICE_NOT_CONFIGURED' };
@@ -68,11 +78,18 @@ const initiateEmergencyCall = async (counselorPhone) => {
 			accountSid: configuration.accountSid
 		});
 
-		const call = await client.calls.create({
+		const payload = {
 			to: toNumber,
 			from: configuration.fromNumber,
-			twiml: `<Response><Say voice="alice">${emergencyAlertMessage}</Say></Response>`
-		});
+			twiml: `<Response><Say voice="alice">${getCallMessage(options.callType)}</Say></Response>`
+		};
+		if (process.env.VOICE_STATUS_CALLBACK_URL) {
+			payload.statusCallback = process.env.VOICE_STATUS_CALLBACK_URL;
+			payload.statusCallbackEvent = ['initiated', 'ringing', 'answered', 'completed'];
+			payload.statusCallbackMethod = 'POST';
+		}
+
+		const call = await client.calls.create(payload);
 
 		return { success: true, callSid: call.sid, status: call.status || 'initiated' };
 	} catch (error) {
@@ -81,4 +98,4 @@ const initiateEmergencyCall = async (counselorPhone) => {
 	}
 };
 
-module.exports = { getVoiceConfiguration, initiateEmergencyCall, normalizePhone, emergencyAlertMessage };
+module.exports = { getVoiceConfiguration, initiateEmergencyCall, normalizePhone, emergencyAlertMessage, automaticRiskMessage };

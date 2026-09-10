@@ -273,6 +273,17 @@ function AlertsPanel({ alerts }) {
                 {alert.alertType}
               </div>
               <div style={{ fontSize: '0.82rem', color: '#475569' }}>{alert.description}</div>
+              {alert.callStatus && (
+                <div style={{ fontSize: '0.8rem', color: alert.callStatus === 'FAILED' ? '#b91c1c' : '#1d4ed8', marginTop: 4 }}>
+                  Automatic call: <strong>{alert.callStatus}</strong>
+                  {alert.callFailureReason && ` (${alert.callFailureReason})`}
+                </div>
+              )}
+              {alert.callLogId?.initiatedAt && (
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
+                  Call initiated: {fmtDateTime(alert.callLogId.initiatedAt)}
+                </div>
+              )}
               <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>
                 {fmtDateTime(alert.createdAt)} · Status: {alert.status}
               </div>

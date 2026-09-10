@@ -58,14 +58,6 @@ export default function CounselorSidebar() {
             </div>
           </NavLink>
         </li>
-        <li>
-          <NavLink to="/counselor/profile" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-            <span className="nav-icon" aria-hidden="true">⚙️</span>
-            <div className="nav-text-container">
-              <span className="nav-label-primary">{t('navProfile')}</span>
-            </div>
-          </NavLink>
-        </li>
       </ul>
     </nav>
   );

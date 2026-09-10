@@ -17,15 +17,6 @@ export default function VictimSidebar() {
           </NavLink>
         </li>
         <li>
-          <NavLink to="/victim/counselor" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-            <span className="nav-icon" aria-hidden="true">👤</span>
-            <div className="nav-text-container">
-              <span className="nav-label-primary">सलाहकार परामर्श</span>
-              <span className="nav-label-secondary">Counselor Consultation</span>
-            </div>
-          </NavLink>
-        </li>
-        <li>
           <NavLink to="/victim/appointment" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
             <span className="nav-icon" aria-hidden="true">📅</span>
             <div className="nav-text-container">

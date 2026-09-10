@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../../utils/api';
 import './DailyUpdates.css';
 
 export default function DailyUpdates() {
@@ -8,22 +9,36 @@ export default function DailyUpdates() {
   const [formState, setFormState] = useState('idle'); // idle | editing | submitting | success | error
   const [validationError, setValidationError] = useState('');
   
-  // Real data state placeholders
   const [previousUpdates, setPreviousUpdates] = useState([]);
+  const [todayUpdate, setTodayUpdate] = useState(null);
 
   const MAX_LENGTH = 1000;
-  const currentDate = new Date().toLocaleDateString(undefined, {
+  const currentDate = new Intl.DateTimeFormat('en-IN', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
-  });
+    day: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  }).format(new Date());
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
+    const loadUpdates = async () => {
+      try {
+        const [todayResponse, historyResponse] = await Promise.all([
+          api.get('/victim/daily-updates/today'),
+          api.get('/victim/daily-updates'),
+        ]);
+        setTodayUpdate(todayResponse.data.update || null);
+        setPreviousUpdates(historyResponse.data.data || []);
+        setContent(todayResponse.data.update?.content || '');
+      } catch (err) {
+        setFormState('error');
+        setValidationError(err.response?.data?.message || 'Failed to load your daily updates.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadUpdates();
   }, []);
 
   const handleChange = (e) => {
@@ -57,16 +72,14 @@ export default function DailyUpdates() {
     setFormState('submitting');
     setValidationError('');
 
-    // Simulate the attempt to contact a backend API.
-    // As instructed, we do not fake success because the real backend endpoint does not exist.
     try {
-      // Future API call would go here: await api.post('/victim/daily-updates', { content })
-      
-      // Since it's missing:
-      throw new Error("Backend integration pending. Service currently unavailable.");
+      const response = await api.post('/victim/daily-updates', { content: content.trim() });
+      setTodayUpdate(response.data.data);
+      setPreviousUpdates((updates) => [response.data.data, ...updates]);
+      setFormState('success');
     } catch (err) {
       setFormState('error');
-      setValidationError(err.message || 'An error occurred while saving your update.');
+      setValidationError(err.response?.data?.message || 'An error occurred while saving your update.');
     }
   };
 
@@ -89,7 +102,8 @@ export default function DailyUpdates() {
 
       <div className="updates-main-grid">
         <section className="form-section">
-          <h2>Write Today's Update</h2>
+          <h2>{todayUpdate ? "Today's Update Submitted" : "Write Today's Update"}</h2>
+          {todayUpdate && <p className="success-message">Today's update has already been submitted. You can review it below.</p>}
           <form className="update-form" onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="updateContent" className="sr-only">Your update</label>
@@ -99,7 +113,7 @@ export default function DailyUpdates() {
                 placeholder="How are you feeling today? What happened?"
                 value={content}
                 onChange={handleChange}
-                disabled={formState === 'submitting'}
+                disabled={formState === 'submitting' || Boolean(todayUpdate)}
                 rows={8}
                 aria-invalid={!!validationError}
               />
@@ -133,7 +147,7 @@ export default function DailyUpdates() {
               <button 
                 type="submit" 
                 className="btn-submit" 
-                disabled={formState === 'submitting' || !content.trim()}
+                disabled={formState === 'submitting' || Boolean(todayUpdate) || !content.trim()}
               >
                 {formState === 'submitting' ? 'Saving securely...' : 'Submit Update'}
               </button>
@@ -145,7 +159,12 @@ export default function DailyUpdates() {
           <h2>Previous Updates</h2>
           {previousUpdates.length > 0 ? (
             <div className="history-list">
-              {/* Structure for future real data */}
+              {previousUpdates.map((update) => (
+                <article key={update._id} className="empty-state-card" style={{ marginBottom: '0.75rem' }}>
+                  <p>{update.content || update.feeling}</p>
+                  <small>{new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' }).format(new Date(update.createdAt))}</small>
+                </article>
+              ))}
             </div>
           ) : (
             <div className="empty-state-card">

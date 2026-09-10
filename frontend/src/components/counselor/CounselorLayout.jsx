@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import CounselorNavbar from './CounselorNavbar';
 import CounselorSidebar from './CounselorSidebar';
 import './CounselorLayout.css';
@@ -14,6 +14,11 @@ export default function CounselorLayout() {
           <Outlet />
         </main>
       </div>
+
+      <Link to="/counselor/dashboard" className="counselor-home-fab" title="Go to home">
+        <span aria-hidden="true">🏠</span>
+        <span>Home</span>
+      </Link>
     </div>
   );
 }

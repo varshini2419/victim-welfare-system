@@ -1,6 +1,10 @@
 const ChatSession = require('../models/ChatSession');
 const ChatMessage = require('../models/ChatMessage');
 const EmotionAnalysis = require('../models/EmotionAnalysis');
+const Case = require('../models/Case');
+const Counselor = require('../models/Counselor');
+const Alert = require('../models/Alert');
+const { initiateEmergencyCall } = require('./voiceService');
 const aiService = require('./aiService');
 
 /**
@@ -47,6 +51,38 @@ const getDistressBand = (score) => {
  * 4. Save real data to ChatMessage + EmotionAnalysis
  * 5. Return structured result
  */
+const triggerCrisisEscalation = async (victimId, analysis) => {
+  try {
+    const victimCase = await Case.findOne({ victimId, status: { $in: ['open', 'in-progress', 'assigned', 'resolved'] } }).populate('assignedCounselorId');
+    if (!victimCase || !victimCase.assignedCounselorId) {
+      return { escalated: false, reason: 'No assigned counselor found' };
+    }
+
+    const counselorPhone = victimCase.assignedCounselorId.phone;
+    if (!counselorPhone) {
+      return { escalated: false, reason: 'Counselor phone missing' };
+    }
+
+    await Alert.create({
+      caseId: victimCase._id,
+      victimId,
+      severity: 'CRITICAL',
+      alertType: 'AI_CRISIS_DETECTED',
+      description: `AI detected a high-risk mental health crisis in victim chat: ${analysis?.crisis_flag ? 'suicidal ideation or severe danger detected' : 'distress escalation observed'}.`
+    });
+
+    const callResult = await initiateEmergencyCall(counselorPhone);
+    if (!callResult.success) {
+      return { escalated: false, reason: callResult.code || 'voice_failed' };
+    }
+
+    return { escalated: true, callSid: callResult.callSid, status: callResult.status };
+  } catch (error) {
+    console.error('[chatbotService] Crisis escalation failed:', error.message);
+    return { escalated: false, reason: error.message };
+  }
+};
+
 const processVictimMessage = async (sessionId, victimId, content, language = 'English') => {
   // 1. Verify session exists and belongs to the victim
   const session = await ChatSession.findOne({ _id: sessionId, victimId, status: 'active' });
@@ -90,6 +126,11 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
     analysis.reply = aiService.getSafetyMessage(analysis.language_detected || langCode);
     analysis.crisis_flag = true;
     analysis.distress_score = Math.max(analysis.distress_score, 90);
+
+    const escalation = await triggerCrisisEscalation(victimId, analysis);
+    if (escalation.escalated) {
+      console.log('[chatbotService] Crisis escalated to assigned counselor:', escalation.callSid || 'no-call-sid');
+    }
   }
 
   const distressBand = getDistressBand(analysis.distress_score);

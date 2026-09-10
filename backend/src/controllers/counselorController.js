@@ -3,6 +3,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
 const Assignment = require('../models/Assignment');
+const User = require('../models/User');
 const Victim = require('../models/Victim');
 const Counselor = require('../models/Counselor');
 const Case = require('../models/Case');

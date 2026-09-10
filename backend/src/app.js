@@ -43,6 +43,8 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const callStatusRoutes = require('./routes/callStatusRoutes');
 const victimAppointmentRoutes = require('./routes/victimAppointmentRoutes');
 const counselorAppointmentRoutes = require('./routes/counselorAppointmentRoutes');
+const dailyUpdateRoutes = require('./routes/dailyUpdateRoutes');
+const followUpRoutes = require('./routes/followUpRoutes');
 
 const { authLimiter } = require('./middleware/rateLimitMiddleware');
 
@@ -56,8 +58,10 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/chatbot', chatbotRoutes);
 app.use('/api/v1/victim', victimRoutes);
 app.use('/api/v1/victim/appointments', victimAppointmentRoutes);
+app.use('/api/v1/victim/daily-updates', dailyUpdateRoutes);
 app.use('/api/v1/counselor', counselorRoutes);
 app.use('/api/v1/counselor/appointments', counselorAppointmentRoutes);
+app.use('/api/v1/counselor/follow-ups', followUpRoutes);
 app.use('/api/v1/emergency', voiceRoutes);
 app.use('/api/v1/counselor/notifications', notificationRoutes);
 app.use('/api/v1/call-status', callStatusRoutes);

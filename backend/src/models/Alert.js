@@ -51,6 +51,11 @@ const alertSchema = new mongoose.Schema({
     enum: ['PENDING', 'INITIATED', 'COMPLETED', 'FAILED', 'NO_ANSWER'],
   },
   callFailureReason: String,
+  actionTaken: {
+    type: String,
+    trim: true,
+    maxlength: 2000,
+  },
   status: {
     type: String,
     enum: ['NEW', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED'],

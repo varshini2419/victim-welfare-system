@@ -35,7 +35,7 @@ const hasDangerSignal = (analysis = {}) => {
 
 const isEscalationEligible = (analysis = {}) => {
   const riskLevel = normalizeRiskLevel(analysis);
-  return (riskLevel === 'HIGH' || riskLevel === 'CRITICAL') && hasDangerSignal(analysis);
+  return riskLevel === 'HIGH' || riskLevel === 'CRITICAL';
 };
 
 const createRiskEvent = async ({ victimId, caseId, sourceMessageId, analysis }) => {

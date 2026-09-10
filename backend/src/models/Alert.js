@@ -22,6 +22,35 @@ const alertSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  eventKey: {
+    type: String,
+    index: true,
+    sparse: true,
+    unique: true,
+  },
+  source: {
+    type: String,
+    enum: ['EMERGENCY_SOS', 'AI_RISK', 'SYSTEM'],
+    default: 'SYSTEM',
+  },
+  riskScore: {
+    type: Number,
+    min: 0,
+    max: 100,
+  },
+  riskLevel: {
+    type: String,
+    enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+  },
+  callLogId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CallLog',
+  },
+  callStatus: {
+    type: String,
+    enum: ['PENDING', 'INITIATED', 'COMPLETED', 'FAILED', 'NO_ANSWER'],
+  },
+  callFailureReason: String,
   status: {
     type: String,
     enum: ['NEW', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED'],

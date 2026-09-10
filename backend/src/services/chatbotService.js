@@ -2,6 +2,8 @@ const ChatSession = require('../models/ChatSession');
 const ChatMessage = require('../models/ChatMessage');
 const EmotionAnalysis = require('../models/EmotionAnalysis');
 const aiService = require('./aiService');
+const riskEventService = require('./riskEventService');
+const automaticCallService = require('./automaticCallService');
 
 /**
  * Language code resolver — maps frontend dropdown labels to ISO codes
@@ -115,6 +117,25 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
     }
   });
 
+  // Escalation is backend-owned and gated by both normalized risk and danger signals.
+  const riskEventResult = await riskEventService.createRiskEvent({
+    victimId,
+    sourceMessageId: userMessage._id,
+    analysis: {
+      ...analysis,
+      distress_score: analysis.distress_score,
+      crisis_flag: isCrisis,
+    },
+  });
+
+  let automaticCall = null;
+  if (riskEventResult.eligible && riskEventResult.event) {
+    automaticCall = await automaticCallService.initiateAutomaticCall({
+      victimId,
+      riskEvent: riskEventResult.event,
+    });
+  }
+
   // 7. Update EmotionAnalysis record for counselor reports
   try {
     let emotionDoc = await EmotionAnalysis.findOne({ victimId });
@@ -193,11 +214,21 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
       emotions: analysis.emotions,
       distress_score: analysis.distress_score,
       distress_band: distressBand,
+      risk_level: riskEventResult.riskLevel,
+      risk_score: analysis.risk_score ?? analysis.riskScore ?? analysis.distress_score,
       crisis_flag: isCrisis,
       language_detected: analysis.language_detected || langCode,
       primary_emotion: primaryEmotionRaw,
       primary_emotion_mapped: primaryEmotion,
-      source: analysis.source
+      source: analysis.source,
+      escalationEligible: riskEventResult.eligible,
+      automaticCall: automaticCall ? {
+        initiated: automaticCall.initiated,
+        duplicate: automaticCall.duplicate || false,
+        dryRun: automaticCall.dryRun || false,
+        reason: automaticCall.reason || null,
+        status: automaticCall.callLog?.callStatus || null,
+      } : null,
     }
   };
 };

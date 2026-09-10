@@ -377,6 +377,7 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
   })
     .sort({ createdAt: -1 })
     .limit(10)
+    .populate('callLogId', 'callStatus providerCallId initiatedAt failureReason')
     .lean();
 
   // ── 9. Crisis indicator (derived from today's chat only) ───────

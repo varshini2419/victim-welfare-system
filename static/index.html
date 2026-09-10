@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindShield AI - Stress & Victim Support Chatbot</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f5ff',
+                            100: '#e0ebff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        },
+                        lightbg: '#f8fafc',
+                        cardbg: '#ffffff',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #0f172a;
+            font-family: 'Inter', sans-serif;
+        }
+        .glass-card {
+            background: #ffffff;
+            backdrop-filter: blur(14px);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.8);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.7);
+        }
+        .recording-pulse {
+            animation: pulse-red 1.2s infinite;
+        }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white relative bg-slate-50 text-slate-900">
+
+    <!-- Header Navbar -->
+    <header class="border-b border-slate-200 bg-white/90 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-brain text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-slate-900 tracking-tight flex items-center gap-2">
+                        MindShield <span class="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">AI</span>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">Bounded Gemini Model</span>
+                    </h1>
+                    <p class="text-xs text-slate-500">Multilingual Victim Stress Monitoring & Emotional Support</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="inline-flex items-center gap-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Gemini AI Ready
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Dashboard -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Primary Analytics & Sentiment Report -->
+        <section class="lg:col-span-6 flex flex-col space-y-5">
+            
+            <!-- System Overview Card -->
+            <div class="glass-card rounded-2xl p-5 shadow-sm">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                            <i class="fa-solid fa-shield-heart text-blue-600"></i> Victim Support & Analytics Hub
+                        </h2>
+                        <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+                            Click the floating chat icon in the bottom right corner to launch the interactive voice & text assistant. All interactions undergo multilingual translation, distress scoring, and bounded Gemini counseling.
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div onclick="openChatModal()" class="bg-slate-50 hover:bg-slate-100 p-2.5 rounded-xl border border-slate-200 cursor-pointer transition-all">
+                        <i class="fa-solid fa-microphone text-blue-600 text-base mb-1 block"></i>
+                        <span class="text-slate-800 font-semibold block">Voice & Text</span>
+                        <span class="text-[10px] text-slate-500">STT Speech Input</span>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <i class="fa-solid fa-language text-purple-600 text-base mb-1 block"></i>
+                        <span class="text-slate-800 font-semibold block">Translation</span>
+                        <span class="text-[10px] text-slate-500">Auto Multilingual</span>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <i class="fa-solid fa-robot text-emerald-600 text-base mb-1 block"></i>
+                        <span class="text-slate-800 font-semibold block">Bounded Gemini</span>
+                        <span class="text-[10px] text-slate-500">Strict Mental Health</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distress Meter Card -->
+            <div class="glass-card rounded-2xl p-5 shadow-sm relative overflow-hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-indigo-600"></i> Victim Distress Score
+                    </h3>
+                    <span id="score-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                        Waiting for input...
+                    </span>
+                </div>
+
+                <div class="flex items-center justify-between my-2 bg-slate-50 rounded-xl p-4 border border-slate-200">
+                    <div>
+                        <div class="text-4xl font-extrabold text-slate-900 tracking-tight" id="score-display">--</div>
+                        <p class="text-xs text-slate-500 mt-1">Scale 0.0 (Calm) to 100.0 (Severe Distress)</p>
+                    </div>
+                    <div class="text-right">
+                        <div id="crisis-indicator" class="hidden animate-bounce inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-100 text-red-700 border border-red-300 text-xs font-bold">
+                            <i class="fa-solid fa-triangle-exclamation"></i> CRISIS FLAG
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden mt-3 p-0.5">
+                    <div id="score-progress" class="bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 h-full rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Crisis Helpline Banner -->
+            <div id="crisis-alert-banner" class="hidden glass-card rounded-2xl p-4 bg-red-50 border-red-200 text-red-900 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="p-2.5 bg-red-100 rounded-xl text-red-600 text-xl flex-shrink-0">
+                        <i class="fa-solid fa-shield-heart"></i>
+                    </div>
+                    <div class="text-xs">
+                        <h4 class="font-bold text-red-800 text-sm mb-1">Immediate Crisis Support Helpline</h4>
+                        <p class="leading-relaxed text-red-700">High distress detected. If you or someone you know is in severe distress or crisis, please reach out to dedicated emergency helplines.</p>
+                        <div class="mt-2.5 flex gap-2">
+                            <a href="tel:9152987821" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 shadow-sm">
+                                <i class="fa-solid fa-phone"></i> Call Emergency Helpline
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Sentiment Analysis Report -->
+            <div class="glass-card rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-file-contract text-blue-600"></i> Sentiment & Emotion Analysis Report
+                    </h3>
+                    <span id="gemini-status-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        No active session
+                    </span>
+                </div>
+                <div id="sentiment-report-body" class="space-y-3 text-xs">
+                    <p class="text-slate-500 text-center py-6">Interact with the chatbot to view real-time sentiment reports and emotion breakdown.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Column: Emotion Distribution & Grounding Techniques -->
+        <section class="lg:col-span-6 flex flex-col space-y-5">
+            
+            <!-- Language & Sentiment Card -->
+            <div class="glass-card rounded-2xl p-5 shadow-sm">
+                <h3 class="font-semibold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-language text-purple-600"></i> Language Detection & Translation
+                </h3>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <span class="text-slate-500 block mb-1">Detected Language</span>
+                        <span id="lang-display" class="font-bold text-slate-800 text-sm">--</span>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <span class="text-slate-500 block mb-1">Sentiment Label</span>
+                        <span id="sentiment-display" class="font-bold text-slate-800 text-sm">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emotion Breakdown Card -->
+            <div class="glass-card rounded-2xl p-5 shadow-sm">
+                <h3 class="font-semibold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-indigo-600"></i> Emotion Distribution Analysis
+                </h3>
+                <div id="emotions-container" class="space-y-2.5 text-xs">
+                    <p class="text-slate-500 text-center py-4">No emotion metrics recorded yet.</p>
+                </div>
+            </div>
+
+            <!-- Knowledge Base Boundary Notice -->
+            <div class="glass-card rounded-2xl p-5 shadow-sm border-blue-200 bg-blue-50/50">
+                <div class="flex items-start space-x-3">
+                    <div class="h-8 w-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-sm mt-0.5">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <div class="text-xs">
+                        <h4 class="font-semibold text-blue-900 text-sm mb-1">Restricted Domain Safeguard</h4>
+                        <p class="text-slate-600 leading-relaxed">
+                            MindShield AI operates with strict system instructions restricting Gemini's knowledge base strictly to victim distress support, depression management, and emotional grounding. Out-of-scope queries (e.g. programming, general math, trivia) are automatically declined.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FLOATING CHATBOT WIDGET BUTTON (BOTTOM RIGHT) -->
+    <div class="fixed bottom-6 right-6 z-[70]">
+        <button id="chatbot-toggle-btn" type="button" onclick="toggleChatModal()" class="h-14 w-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white flex items-center justify-center shadow-2xl shadow-blue-600/40 transition-all duration-300 transform hover:scale-105 active:scale-95 group relative cursor-pointer">
+            <i id="toggle-icon-open" class="fa-solid fa-comments text-2xl pointer-events-none"></i>
+            <i id="toggle-icon-close" class="fa-solid fa-xmark text-2xl hidden pointer-events-none"></i>
+            <!-- Glowing indicator ring -->
+            <span class="absolute -top-1 -right-1 flex h-4 w-4 pointer-events-none">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-white"></span>
+            </span>
+        </button>
+    </div>
+
+    <!-- CHATBOT WINDOW MODAL / POPUP -->
+    <div id="chatbot-modal" class="hidden fixed bottom-24 right-4 sm:right-6 w-[96vw] max-w-[920px] h-[640px] max-h-[80vh] bg-white rounded-2xl shadow-2xl z-[60] flex flex-col overflow-hidden border border-slate-200 transition-all duration-300">
+        
+        <!-- Chat Header -->
+        <div class="bg-white p-3.5 px-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center space-x-2.5">
+                <button id="toggle-sidebar-btn" title="Toggle History Sidebar" class="text-slate-500 hover:text-slate-700 text-xs p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div class="h-8 w-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-sm shadow">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm leading-none">MindShield Victim Support</h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Bounded Gemini • Voice + Text Enabled • TTS Vocal Output</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <!-- TTS Audio Vocal Toggle -->
+                <button id="tts-toggle-btn" type="button" title="Toggle Vocal Voice Output (TTS)" class="text-emerald-700 hover:text-emerald-800 text-xs p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 transition-colors flex items-center gap-1">
+                    <i id="tts-icon" class="fa-solid fa-volume-high"></i>
+                    <span id="tts-status-text" class="text-[10px] font-semibold">Voice On</span>
+                </button>
+
+                <button id="new-chat-header-btn" type="button" title="Start New Chat Session" class="text-blue-700 hover:text-blue-800 text-xs p-1.5 rounded-lg bg-blue-50 border border-blue-200 transition-colors flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="text-[10px] font-semibold">New Chat</span>
+                </button>
+
+                <!-- Minimize Chat Button -->
+                <button id="minimize-modal-btn" type="button" onclick="closeChatModal()" title="Minimize Chat Window" class="text-slate-500 hover:text-slate-800 text-xs p-1.5 px-2 rounded-lg hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer flex items-center gap-1">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+
+                <!-- Close Chat Button -->
+                <button id="close-modal-btn" type="button" onclick="closeChatModal()" title="Close Chat Window" class="text-slate-500 hover:text-red-600 text-xs p-1.5 px-2 rounded-lg hover:bg-red-50 border border-slate-200 transition-colors cursor-pointer flex items-center gap-1">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Body: Sidebar + Chat Container -->
+        <div class="flex-1 flex overflow-hidden relative">
+            
+            <!-- Left Side Chat History Sidebar -->
+            <div id="history-sidebar" class="w-60 bg-slate-50 border-r border-slate-200 flex flex-col flex-shrink-0 transition-all duration-300">
+                <div class="p-3 border-b border-slate-200 flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> History
+                    </span>
+                    <button id="new-chat-sidebar-btn" title="New Session" class="text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-medium px-2 py-1 rounded-lg transition-colors flex items-center gap-1 shadow-sm">
+                        <i class="fa-solid fa-plus text-[9px]"></i> New
+                    </button>
+                </div>
+                <div id="history-list" class="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar text-xs">
+                    <!-- Session items rendered dynamically -->
+                </div>
+            </div>
+
+            <!-- Right Side Main Chat Container -->
+            <div id="chat-main-area" class="flex-1 flex flex-col overflow-hidden bg-slate-100/60">
+                <!-- Chat Messages Container -->
+                <div id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar">
+                    <div class="flex items-start space-x-2.5">
+                        <div class="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-xs shadow mt-0.5">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <div class="bg-white rounded-2xl rounded-tl-none p-3.5 max-w-[88%] text-slate-700 text-xs leading-relaxed border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between gap-1 mb-1">
+                                <span class="font-semibold text-blue-600 text-[11px]">MindShield AI Counsellor</span>
+                            </div>
+                            Hello. I am here to listen and support you in <strong>any language</strong> (Telugu, Hindi, English, Spanish, etc.). You can <strong>type</strong> or click the 🎙️ <strong>mic icon</strong> to speak. Voice vocal responses are enabled.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Sample Suggestions -->
+                <div class="p-2 px-3 bg-white border-t border-slate-200 flex-shrink-0">
+                    <p class="text-[10px] text-slate-500 mb-1.5 font-medium">Quick Sample Inputs:</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="setSample('నాకు చాలా భయంగా ఉంది, వాళ్ళు మళ్ళీ బెదిరించారు')" class="text-[10px] bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 px-2 py-1 rounded-md transition-colors">
+                            🇮🇳 Telugu (Distress)
+                        </button>
+                        <button onclick="setSample('मुझे बहुत तनाव और अकेलापन महसूस हो रहा है')" class="text-[10px] bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 px-2 py-1 rounded-md transition-colors">
+                            🇮🇳 Hindi (Stress)
+                        </button>
+                        <button onclick="setSample('Write a python program to calculate factorial')" class="text-[10px] bg-slate-50 hover:bg-slate-100 border border-amber-300 text-amber-800 px-2 py-1 rounded-md transition-colors">
+                            ⚠️ Off-Topic Test
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Listening Indicator Overlay -->
+                <div id="voice-indicator" class="hidden px-4 py-2 bg-red-50 border-t border-red-200 text-red-800 text-xs flex items-center justify-between animate-pulse flex-shrink-0">
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid fa-microphone text-red-600 animate-bounce"></i>
+                        <span class="font-medium" id="voice-status-text">Listening to voice input... speak now</span>
+                    </span>
+                    <button onclick="stopVoiceRecognition()" class="text-[10px] underline text-red-700 font-semibold">Stop</button>
+                </div>
+
+                <!-- Voice Error Alert Banner -->
+                <div id="voice-error-banner" class="hidden px-4 py-2 bg-amber-50 border-t border-amber-200 text-amber-900 text-xs flex items-center justify-between flex-shrink-0">
+                    <div class="flex items-center gap-2 flex-1 pr-2">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-600 flex-shrink-0"></i>
+                        <span id="voice-error-text">Microphone error</span>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <button onclick="retryVoiceRecognition()" class="text-[10px] bg-amber-600 hover:bg-amber-700 text-white font-medium px-2 py-1 rounded transition-colors flex items-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-rotate-right"></i> Retry Mic
+                        </button>
+                        <button onclick="hideVoiceError()" class="text-[10px] text-amber-700 hover:text-amber-900 p-1">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat Input Form -->
+                <form id="chat-form" class="p-3 bg-white border-t border-slate-200 flex items-center gap-2 flex-shrink-0">
+                    <!-- Speech Language Selector -->
+                    <select id="voice-lang-select" title="Speech Recognition Language" class="bg-slate-50 border border-slate-300 text-slate-800 text-[11px] rounded-xl px-2 py-2.5 outline-none focus:border-blue-500">
+                        <option value="en-US">🇺🇸 EN</option>
+                        <option value="te-IN">🇮🇳 TE (తెలుగు)</option>
+                        <option value="hi-IN">🇮🇳 HI (हिंदी)</option>
+                        <option value="es-ES">🇪🇸 ES</option>
+                        <option value="fr-FR">🇫🇷 FR</option>
+                        <option value="ta-IN">🇮🇳 TA (தமிழ்)</option>
+                        <option value="kn-IN">🇮🇳 KN (కన్నడ)</option>
+                        <option value="ml-IN">🇮🇳 ML (മലയാളം)</option>
+                    </select>
+
+                    <input type="text" id="user-input" required placeholder="Type or click mic to speak..." 
+                        class="flex-1 bg-slate-50 border border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-slate-900 placeholder-slate-400 rounded-xl px-3.5 py-2.5 text-xs outline-none transition-all">
+                    
+                    <!-- Voice Input Button -->
+                    <button type="button" id="voice-btn" title="Voice Input (Speech to Text)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 px-3 py-2.5 rounded-xl border border-slate-300 text-xs transition-all flex items-center justify-center">
+                        <i class="fa-solid fa-microphone text-sm"></i>
+                    </button>
+
+                    <!-- Send Button -->
+                    <button type="submit" id="send-btn" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl font-medium text-xs flex items-center gap-1.5 shadow-md transition-all disabled:opacity-50">
+                        <span>Send</span>
+                        <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                    </button>
+                </form>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500 mt-auto">
+        <p>MindShield AI • Powered by Google Gemini & RoBERTa Distress Analytics</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // DOM Elements
+        const chatbotToggleBtn = document.getElementById('chatbot-toggle-btn');
+        const chatbotModal = document.getElementById('chatbot-modal');
+        const toggleIconOpen = document.getElementById('toggle-icon-open');
+        const toggleIconClose = document.getElementById('toggle-icon-close');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+        const historySidebar = document.getElementById('history-sidebar');
+        const newChatHeaderBtn = document.getElementById('new-chat-header-btn');
+        const newChatSidebarBtn = document.getElementById('new-chat-sidebar-btn');
+        
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const chatBox = document.getElementById('chat-box');
+        const sendBtn = document.getElementById('send-btn');
+        const voiceBtn = document.getElementById('voice-btn');
+        const voiceIndicator = document.getElementById('voice-indicator');
+
+        // TTS Vocal Elements
+        const ttsToggleBtn = document.getElementById('tts-toggle-btn');
+        const ttsIcon = document.getElementById('tts-icon');
+        const ttsStatusText = document.getElementById('tts-status-text');
+
+        // Analytics Elements
+        const scoreDisplay = document.getElementById('score-display');
+        const scoreBadge = document.getElementById('score-badge');
+        const scoreProgress = document.getElementById('score-progress');
+        const crisisIndicator = document.getElementById('crisis-indicator');
+        const crisisAlertBanner = document.getElementById('crisis-alert-banner');
+        const langDisplay = document.getElementById('lang-display');
+        const sentimentDisplay = document.getElementById('sentiment-display');
+        const emotionsContainer = document.getElementById('emotions-container');
+        const sentimentReportBody = document.getElementById('sentiment-report-body');
+        const geminiStatusBadge = document.getElementById('gemini-status-badge');
+
+        const langNames = {
+            'te': 'Telugu (తెలుగు)',
+            'hi': 'Hindi (हिंदी)',
+            'en': 'English',
+            'es': 'Spanish (Español)',
+            'fr': 'French (Français)',
+            'ta': 'Tamil (தமிழ்)',
+            'kn': 'Kannada (కನ್ನಡ)',
+            'ml': 'Malayalam (മലയാളം)',
+            'mr': 'Marathi (మరాఠీ)',
+            'bn': 'Bengali (বাংলা)'
+        };
+
+        // TTS Vocal State & Helper
+        let isTTSEnabled = true;
+        if (ttsToggleBtn) {
+            ttsToggleBtn.addEventListener('click', () => {
+                isTTSEnabled = !isTTSEnabled;
+                if (isTTSEnabled) {
+                    ttsIcon.className = 'fa-solid fa-volume-high';
+                    ttsStatusText.innerText = 'Voice On';
+                    ttsToggleBtn.className = 'text-emerald-700 hover:text-emerald-800 text-xs p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 transition-colors flex items-center gap-1';
+                } else {
+                    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                    ttsIcon.className = 'fa-solid fa-volume-xmark';
+                    ttsStatusText.innerText = 'Muted';
+                    ttsToggleBtn.className = 'text-slate-500 hover:text-slate-700 text-xs p-1.5 rounded-lg bg-slate-100 border border-slate-200 transition-colors flex items-center gap-1';
+                }
+            });
+        }
+
+        function speakText(text, langCode) {
+            if (!isTTSEnabled || !text) return;
+
+            // Stop any playing audio or speech
+            if (window.currentAudioTTS) {
+                try { window.currentAudioTTS.pause(); } catch(e) {}
+                window.currentAudioTTS = null;
+            }
+            if ('speechSynthesis' in window) {
+                try { window.speechSynthesis.cancel(); } catch(e) {}
+            }
+
+            const cleanText = text.trim();
+            if (!cleanText) return;
+
+            const langMap = {
+                'te': 'te-IN',
+                'hi': 'hi-IN',
+                'en': 'en-US',
+                'es': 'es-ES',
+                'fr': 'fr-FR',
+                'ta': 'ta-IN',
+                'kn': 'kn-IN',
+                'ml': 'ml-IN',
+                'mr': 'mr-IN',
+                'bn': 'bn-IN'
+            };
+            const targetLang = langMap[langCode] || langCode || 'en-US';
+
+            let browserSpoken = false;
+            if ('speechSynthesis' in window) {
+                const voices = window.speechSynthesis.getVoices();
+                const matchingVoice = voices.find(v => 
+                    v.lang.startsWith(targetLang) || 
+                    v.lang.startsWith(langCode) || 
+                    (v.name && v.name.toLowerCase().includes(langCode === 'te' ? 'telugu' : langCode))
+                );
+
+                if (matchingVoice) {
+                    try {
+                        const utterance = new SpeechSynthesisUtterance(cleanText);
+                        utterance.lang = targetLang;
+                        utterance.voice = matchingVoice;
+                        window.speechSynthesis.speak(utterance);
+                        browserSpoken = true;
+                    } catch (err) {
+                        console.warn('SpeechSynthesis utterance failed:', err);
+                    }
+                }
+            }
+
+            // Dual-Engine Fallback: Stream TTS Audio
+            if (!browserSpoken) {
+                try {
+                    const sampleChunk = cleanText.length > 200 ? cleanText.substring(0, 200) : cleanText;
+                    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(sampleChunk)}&tl=${langCode || 'en'}&client=tw-ob`;
+                    const audio = new Audio(audioUrl);
+                    window.currentAudioTTS = audio;
+                    audio.play().catch(e => {
+                        console.warn('Audio playback failed, attempting SpeechSynthesis fallback:', e);
+                        if ('speechSynthesis' in window) {
+                            const u = new SpeechSynthesisUtterance(cleanText);
+                            window.speechSynthesis.speak(u);
+                        }
+                    });
+                } catch (e) {
+                    console.warn('Audio TTS stream error:', e);
+                }
+            }
+        }
+
+        // Modal & Sidebar Handlers
+        let isChatOpen = false;
+
+        function toggleChatModal() {
+            const modal = document.getElementById('chatbot-modal');
+            if (!modal) {
+                openChatModal();
+                return;
+            }
+            const compDisplay = window.getComputedStyle(modal).display;
+            const isHidden = modal.classList.contains('hidden') || modal.style.display === 'none' || compDisplay === 'none';
+            if (isHidden) {
+                openChatModal();
+            } else {
+                closeChatModal();
+            }
+        }
+
+        function openChatModal() {
+            isChatOpen = true;
+            const modal = document.getElementById('chatbot-modal');
+            const iconOpen = document.getElementById('toggle-icon-open');
+            const iconClose = document.getElementById('toggle-icon-close');
+            const input = document.getElementById('user-input');
+
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.setProperty('display', 'flex', 'important');
+            }
+            if (iconOpen) iconOpen.classList.add('hidden');
+            if (iconClose) iconClose.classList.remove('hidden');
+            if (input) setTimeout(() => input.focus(), 100);
+        }
+
+        function closeChatModal() {
+            isChatOpen = false;
+            const modal = document.getElementById('chatbot-modal');
+            const iconOpen = document.getElementById('toggle-icon-open');
+            const iconClose = document.getElementById('toggle-icon-close');
+
+            if (modal) {
+                modal.style.setProperty('display', 'none', 'important');
+                modal.classList.add('hidden');
+            }
+            if (iconOpen) iconOpen.classList.remove('hidden');
+            if (iconClose) iconClose.classList.add('hidden');
+        }
+
+        // Expose modal handlers to global window scope for inline onclick triggers
+        window.openChatModal = openChatModal;
+        window.closeChatModal = closeChatModal;
+        window.toggleChatModal = toggleChatModal;
+
+        if (chatbotToggleBtn) chatbotToggleBtn.addEventListener('click', toggleChatModal);
+        if (closeModalBtn) closeModalBtn.addEventListener('click', closeChatModal);
+        const minimizeModalBtn = document.getElementById('minimize-modal-btn');
+        if (minimizeModalBtn) minimizeModalBtn.addEventListener('click', closeChatModal);
+
+        if (toggleSidebarBtn && historySidebar) {
+            toggleSidebarBtn.addEventListener('click', () => {
+                historySidebar.classList.toggle('hidden');
+            });
+        }
+
+        // Session & History Storage Management
+        let currentSessionId = 'session_' + Date.now();
+        let activeSessions = {};
+
+        function loadSessionsFromStorage() {
+            try {
+                const stored = localStorage.getItem('mindshield_sessions');
+                if (stored) {
+                    activeSessions = JSON.parse(stored);
+                }
+            } catch (e) {
+                activeSessions = {};
+            }
+        }
+
+        function saveSessionsToStorage() {
+            try {
+                localStorage.setItem('mindshield_sessions', JSON.stringify(activeSessions));
+            } catch (e) {
+                console.warn('Could not save sessions:', e);
+            }
+        }
+
+        function getOrCreateCurrentSession() {
+            if (!activeSessions[currentSessionId]) {
+                activeSessions[currentSessionId] = {
+                    id: currentSessionId,
+                    title: 'New Support Session',
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    messages: [],
+                    history: [],
+                    lastData: null
+                };
+                saveSessionsToStorage();
+            }
+            return activeSessions[currentSessionId];
+        }
+
+        function renderHistorySidebar() {
+            const historyList = document.getElementById('history-list');
+            if (!historyList) return;
+
+            const sessionKeys = Object.keys(activeSessions).sort((a, b) => {
+                return (activeSessions[b].updatedAt || 0) - (activeSessions[a].updatedAt || 0);
+            });
+
+            if (sessionKeys.length === 0) {
+                historyList.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-4">No past sessions yet.</p>';
+                return;
+            }
+
+            historyList.innerHTML = sessionKeys.map(sid => {
+                const sess = activeSessions[sid];
+                const isActive = sid === currentSessionId;
+                const activeClass = isActive 
+                    ? 'bg-blue-50 border-blue-300 text-blue-900 font-semibold shadow-sm' 
+                    : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700';
+                
+                const title = escapeHtml(sess.title || 'Chat Session');
+                const msgCount = sess.messages ? sess.messages.length : 0;
+
+                return `
+                    <div onclick="switchSession('${sid}')" class="p-2.5 rounded-xl border ${activeClass} cursor-pointer transition-all flex items-center justify-between group">
+                        <div class="truncate flex-1 pr-2">
+                            <span class="block truncate text-xs">${title}</span>
+                            <span class="text-[9px] text-slate-400 font-normal block mt-0.5">${msgCount} messages</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); deleteSession('${sid}')" title="Delete session" class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-opacity">
+                            <i class="fa-solid fa-trash-can text-[10px]"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function createNewSession() {
+            currentSessionId = 'session_' + Date.now();
+            getOrCreateCurrentSession();
+            renderHistorySidebar();
+            
+            chatBox.innerHTML = `
+                <div class="flex items-start space-x-2.5">
+                    <div class="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-xs shadow mt-0.5">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-white rounded-2xl rounded-tl-none p-3.5 max-w-[88%] text-slate-700 text-xs leading-relaxed border border-slate-200 shadow-sm">
+                        <div class="flex items-center justify-between gap-1 mb-1">
+                            <span class="font-semibold text-blue-600 text-[11px]">MindShield AI Counsellor</span>
+                        </div>
+                        Hello. New chat session started. I am here to listen and support you in <strong>any language</strong>. You can <strong>type</strong> or click the 🎙️ <strong>mic icon</strong> to speak. Voice vocal responses are enabled.
+                    </div>
+                </div>
+            `;
+            resetMetrics();
+        }
+
+        function switchSession(sid) {
+            if (!activeSessions[sid]) return;
+            currentSessionId = sid;
+            const sess = activeSessions[sid];
+
+            chatBox.innerHTML = '';
+            if (sess.messages && sess.messages.length > 0) {
+                sess.messages.forEach(m => {
+                    if (m.sender === 'user') {
+                        appendUserMessageUI(m.text);
+                    } else {
+                        appendAIMessageUI(m.text, m.lang, m.usedGemini, false);
+                    }
+                });
+            } else {
+                createNewSession();
+                return;
+            }
+
+            if (sess.lastData) {
+                updateDashboard(sess.lastData);
+            } else {
+                resetMetrics();
+            }
+            renderHistorySidebar();
+        }
+
+        function deleteSession(sid) {
+            delete activeSessions[sid];
+            saveSessionsToStorage();
+            if (currentSessionId === sid) {
+                const remainingKeys = Object.keys(activeSessions);
+                if (remainingKeys.length > 0) {
+                    switchSession(remainingKeys[0]);
+                } else {
+                    createNewSession();
+                }
+            } else {
+                renderHistorySidebar();
+            }
+        }
+
+        if (newChatHeaderBtn) newChatHeaderBtn.addEventListener('click', createNewSession);
+        if (newChatSidebarBtn) newChatSidebarBtn.addEventListener('click', createNewSession);
+
+        function setSample(text) {
+            if (!isChatOpen) openChatModal();
+            userInput.value = text;
+            userInput.focus();
+        }
+
+        function resetMetrics() {
+            scoreDisplay.innerText = '--';
+            scoreBadge.innerText = 'Waiting for input...';
+            scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200';
+            scoreProgress.style.width = '0%';
+            crisisIndicator.classList.add('hidden');
+            crisisAlertBanner.classList.add('hidden');
+            langDisplay.innerText = '--';
+            sentimentDisplay.innerText = '--';
+            emotionsContainer.innerHTML = '<p class="text-slate-500 text-center py-4">No emotion metrics recorded yet.</p>';
+            sentimentReportBody.innerHTML = '<p class="text-slate-500 text-center py-6">Interact with the chatbot to view real-time sentiment reports and emotion breakdown.</p>';
+            geminiStatusBadge.innerText = 'No active session';
+            geminiStatusBadge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200';
+        }
+
+        // ---------- Web Speech API & Web Audio Microphone Recording Logic ----------
+        let recognition = null;
+        let isListening = false;
+        let silenceTimer = null;
+        let isUsingWebSpeech = true;
+
+        // Web Audio PCM WAV Recorder State
+        let audioCtx = null;
+        let micStream = null;
+        let scriptProcessor = null;
+        let pcmBuffers = [];
+
+        const voiceLangSelect = document.getElementById('voice-lang-select');
+        const voiceErrorBanner = document.getElementById('voice-error-banner');
+        const voiceErrorText = document.getElementById('voice-error-text');
+
+        function showVoiceError(msg) {
+            if (voiceErrorText && voiceErrorBanner) {
+                voiceErrorText.innerText = msg;
+                voiceErrorBanner.classList.remove('hidden');
+            }
+        }
+
+        function hideVoiceError() {
+            if (voiceErrorBanner) {
+                voiceErrorBanner.classList.add('hidden');
+            }
+        }
+
+        function resetSilenceTimer() {
+            if (silenceTimer) clearTimeout(silenceTimer);
+            silenceTimer = setTimeout(() => {
+                console.log('10 seconds silence timeout reached. Stopping microphone.');
+                if (isListening) {
+                    stopVoiceRecognition();
+                }
+            }, 10000);
+        }
+
+        // Initialize Web Speech API if supported
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                isListening = true;
+                hideVoiceError();
+                voiceBtn.classList.add('recording-pulse', 'bg-red-600', 'text-white');
+                voiceIndicator.classList.remove('hidden');
+                const statusText = document.getElementById('voice-status-text');
+                if (statusText) statusText.innerText = "Listening to voice input... speak now";
+                resetSilenceTimer();
+            };
+
+            recognition.onresult = (event) => {
+                resetSilenceTimer();
+                let fullTranscript = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    fullTranscript += event.results[i][0].transcript + ' ';
+                }
+                if (fullTranscript && fullTranscript.trim()) {
+                    userInput.value = fullTranscript.trim();
+                }
+                userInput.focus();
+            };
+
+            recognition.onerror = (event) => {
+                console.warn('Speech recognition error:', event.error);
+                if (event.error === 'network') {
+                    console.log('Web Speech API network issue. Auto-switching to Web Audio recording mode...');
+                    isUsingWebSpeech = false;
+                    try { recognition.stop(); } catch(e) {}
+                    startWavRecording();
+                    return;
+                } else if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+                    showVoiceError('Microphone access denied. Please grant microphone permissions in browser.');
+                    stopVoiceRecognition();
+                } else if (event.error === 'no-speech') {
+                    if (isListening && isUsingWebSpeech) {
+                        try { recognition.start(); } catch(e) {}
+                        return;
+                    }
+                } else {
+                    isUsingWebSpeech = false;
+                    startWavRecording();
+                }
+            };
+
+            recognition.onend = () => {
+                if (isListening && isUsingWebSpeech) {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        stopVoiceRecognition();
+                    }
+                } else if (!isUsingWebSpeech) {
+                    // Handled by Web Audio
+                } else {
+                    stopVoiceRecognition();
+                }
+            };
+        } else {
+            isUsingWebSpeech = false;
+        }
+
+        voiceBtn.addEventListener('click', () => {
+            if (isListening) {
+                stopVoiceRecognition();
+            } else {
+                startVoiceRecognition();
+            }
+        });
+
+        function startVoiceRecognition() {
+            hideVoiceError();
+            if (!isUsingWebSpeech || !recognition) {
+                startWavRecording();
+                return;
+            }
+            try {
+                const selectedLang = voiceLangSelect ? voiceLangSelect.value : 'en-US';
+                recognition.lang = selectedLang || navigator.language || 'en-US';
+                isListening = true;
+                recognition.start();
+            } catch (err) {
+                console.error('Speech recognition start error:', err);
+                isUsingWebSpeech = false;
+                startWavRecording();
+            }
+        }
+
+        function retryVoiceRecognition() {
+            hideVoiceError();
+            isUsingWebSpeech = false;
+            startWavRecording();
+        }
+
+        function stopVoiceRecognition() {
+            if (silenceTimer) {
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+            }
+
+            if (isListening && !isUsingWebSpeech) {
+                isListening = false;
+                stopWavRecordingAndUpload();
+            } else {
+                isListening = false;
+                if (recognition) {
+                    try { recognition.stop(); } catch(e) {}
+                }
+            }
+
+            voiceBtn.classList.remove('recording-pulse', 'bg-red-600', 'text-white');
+            voiceIndicator.classList.add('hidden');
+        }
+
+        // ---------- Web Audio WAV PCM Microphone Recording (100% Local Browser API) ----------
+        async function startWavRecording() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showVoiceError("Microphone access is not supported in this browser.");
+                return;
+            }
+
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioCtx.createMediaStreamSource(micStream);
+                scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+                pcmBuffers = [];
+
+                scriptProcessor.onaudioprocess = (e) => {
+                    if (!isListening) return;
+                    const input = e.inputBuffer.getChannelData(0);
+                    pcmBuffers.push(new Float32Array(input));
+                };
+
+                source.connect(scriptProcessor);
+                scriptProcessor.connect(audioCtx.destination);
+
+                isListening = true;
+                hideVoiceError();
+                voiceBtn.classList.add('recording-pulse', 'bg-red-600', 'text-white');
+                voiceIndicator.classList.remove('hidden');
+                const statusEl = document.getElementById('voice-status-text');
+                if (statusEl) statusEl.innerText = "Recording voice... speak now (click mic button when done)";
+                resetSilenceTimer();
+            } catch (err) {
+                console.error('Web Audio recording error:', err);
+                showVoiceError("Microphone access blocked or unavailable. Please check browser permissions.");
+                isListening = false;
+                voiceBtn.classList.remove('recording-pulse', 'bg-red-600', 'text-white');
+                voiceIndicator.classList.add('hidden');
+            }
+        }
+
+        function stopWavRecordingAndUpload() {
+            if (micStream) {
+                micStream.getTracks().forEach(t => t.stop());
+                micStream = null;
+            }
+            if (scriptProcessor) {
+                scriptProcessor.disconnect();
+                scriptProcessor = null;
+            }
+
+            let sampleRate = audioCtx ? audioCtx.sampleRate : 44100;
+            if (audioCtx) {
+                audioCtx.close();
+                audioCtx = null;
+            }
+
+            if (pcmBuffers.length === 0) return;
+
+            let totalLen = pcmBuffers.reduce((acc, b) => acc + b.length, 0);
+            let samples = new Float32Array(totalLen);
+            let offset = 0;
+            for (let b of pcmBuffers) {
+                samples.set(b, offset);
+                offset += b.length;
+            }
+
+            const wavBlob = encodeWAV(samples, sampleRate);
+            uploadAudioForTranscription(wavBlob);
+        }
+
+        function encodeWAV(samples, sampleRate) {
+            let buffer = new ArrayBuffer(44 + samples.length * 2);
+            let view = new DataView(buffer);
+
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // Raw PCM
+            view.setUint16(22, 1, true); // Mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                let s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        async function uploadAudioForTranscription(blob) {
+            showVoiceError("Transcribing recorded voice...");
+            const selectedLang = voiceLangSelect ? voiceLangSelect.value : 'en-US';
+
+            try {
+                const res = await fetch(`/transcribe?lang=${encodeURIComponent(selectedLang)}`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'audio/wav',
+                        'X-Voice-Lang': selectedLang
+                    },
+                    body: blob
+                });
+                const data = await res.json();
+                hideVoiceError();
+                if (data.success && data.transcript) {
+                    userInput.value = data.transcript;
+                    userInput.focus();
+                } else if (data.error) {
+                    showVoiceError(data.error);
+                }
+            } catch (err) {
+                console.error('Audio transcription upload error:', err);
+                showVoiceError("Could not connect to transcription server.");
+            }
+        }
+
+        // Form Submit Handler
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            const sess = getOrCreateCurrentSession();
+            
+            // Set session title from first prompt
+            if (!sess.title || sess.title === 'New Support Session') {
+                sess.title = text.length > 28 ? text.substring(0, 28) + '...' : text;
+            }
+
+            appendUserMessageUI(text);
+            sess.messages.push({ sender: 'user', text: text, timestamp: new Date().toISOString() });
+            
+            userInput.value = '';
+            sendBtn.disabled = true;
+
+            const loadingId = appendLoadingMessage();
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        case_id: sess.id, 
+                        text: text,
+                        history: sess.history || []
+                    })
+                });
+
+                if (!response.ok) throw new Error('Server returned HTTP ' + response.status);
+                const data = await response.json();
+
+                removeMessage(loadingId);
+                appendAIMessageUI(data.reply, data.language_detected, data.used_gemini, true);
+
+                // Update session context history for continuity
+                if (!sess.history) sess.history = [];
+                sess.history.push({ role: 'user', text: text });
+                sess.history.push({ role: 'model', text: data.reply });
+                
+                sess.messages.push({ 
+                    sender: 'ai', 
+                    text: data.reply, 
+                    lang: data.language_detected, 
+                    usedGemini: data.used_gemini,
+                    timestamp: new Date().toISOString() 
+                });
+                sess.lastData = data;
+                sess.updatedAt = Date.now();
+
+                saveSessionsToStorage();
+                renderHistorySidebar();
+
+                updateDashboard(data);
+
+            } catch (err) {
+                console.error(err);
+                removeMessage(loadingId);
+                appendAIMessageUI('Sorry, an error occurred while reaching MindShield server. Please ensure the backend is running.', 'en', false, false);
+            } finally {
+                sendBtn.disabled = false;
+            }
+        });
+
+        function appendUserMessageUI(text) {
+            const div = document.createElement('div');
+            div.className = 'flex items-start justify-end space-x-2.5';
+            div.innerHTML = `
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-none p-3 max-w-[85%] text-xs leading-relaxed shadow">
+                    <p class="font-medium text-blue-100 text-[10px] mb-0.5 text-right">You</p>
+                    ${escapeHtml(text)}
+                </div>
+                <div class="h-7 w-7 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 text-slate-600 text-xs shadow mt-0.5">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendLoadingMessage() {
+            const id = 'msg_' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'flex items-start space-x-2.5';
+            div.innerHTML = `
+                <div class="h-7 w-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-xs shadow animate-pulse mt-0.5">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-white rounded-2xl rounded-tl-none p-3 max-w-[85%] text-slate-600 text-xs leading-relaxed flex items-center gap-2 border border-slate-200 shadow-sm">
+                    <i class="fa-solid fa-spinner animate-spin text-blue-600"></i> Translating & querying Bounded Gemini AI...
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return id;
+        }
+
+        function appendAIMessageUI(reply, langCode, usedGemini, autoSpeak = true) {
+            const div = document.createElement('div');
+            div.className = 'flex items-start space-x-2.5';
+            const langLabel = langNames[langCode] || (langCode ? langCode.toUpperCase() : 'EN');
+            const sourceBadge = usedGemini 
+                ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">Gemini 2.5</span>'
+                : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">Template</span>';
+
+            const escapedReply = escapeHtml(reply);
+
+            div.innerHTML = `
+                <div class="h-7 w-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-xs shadow mt-0.5">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-white rounded-2xl rounded-tl-none p-3.5 max-w-[88%] text-slate-800 text-xs leading-relaxed border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between gap-1 mb-1">
+                        <div class="flex items-center gap-1">
+                            <span class="font-semibold text-blue-600 text-[11px]">MindShield AI</span>
+                            <button title="Replay voice audio" class="tts-speak-btn text-slate-400 hover:text-emerald-600 text-[10px] p-0.5 px-1 rounded hover:bg-slate-100 transition-colors ml-1">
+                                <i class="fa-solid fa-volume-low"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            ${sourceBadge}
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">${langLabel}</span>
+                        </div>
+                    </div>
+                    <p class="text-slate-800 whitespace-pre-wrap">${escapedReply}</p>
+                </div>
+            `;
+
+            const speakBtn = div.querySelector('.tts-speak-btn');
+            if (speakBtn) {
+                speakBtn.addEventListener('click', () => speakText(reply, langCode));
+            }
+
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            if (autoSpeak) {
+                speakText(reply, langCode);
+            }
+        }
+
+        function removeMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function updateDashboard(data) {
+            if (!data) return;
+            const score = data.distress_score || 0;
+            scoreDisplay.innerText = score.toFixed(1);
+            scoreProgress.style.width = Math.min(100, Math.max(0, score)) + '%';
+
+            // Crisis & Band updates
+            if (data.crisis_flag || score >= 90) {
+                scoreBadge.innerText = 'CRISIS DETECTED';
+                scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-700 border border-red-300';
+                crisisIndicator.classList.remove('hidden');
+                crisisAlertBanner.classList.remove('hidden');
+            } else if (score >= 70) {
+                scoreBadge.innerText = 'HIGH DISTRESS';
+                scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-300';
+                crisisIndicator.classList.add('hidden');
+                crisisAlertBanner.classList.add('hidden');
+            } else if (score >= 40) {
+                scoreBadge.innerText = 'MODERATE STRESS';
+                scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-300';
+                crisisIndicator.classList.add('hidden');
+                crisisAlertBanner.classList.add('hidden');
+            } else {
+                scoreBadge.innerText = 'STABLE / LOW';
+                scoreBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300';
+                crisisIndicator.classList.add('hidden');
+                crisisAlertBanner.classList.add('hidden');
+            }
+
+            // Language & Sentiment
+            const langCode = data.language_detected || 'en';
+            langDisplay.innerText = (langNames[langCode] || langCode.toUpperCase()) + ` (${langCode})`;
+
+            const sent = data.sentiment || { label: 'neutral', score: 0.5 };
+            const sentPct = (sent.score * 100).toFixed(0);
+            sentimentDisplay.innerHTML = `<span class="${sent.label === 'negative' ? 'text-red-600' : 'text-emerald-600'} capitalize">${sent.label}</span> <span class="text-slate-500 font-normal">(${sentPct}%)</span>`;
+
+            // Emotions Breakdown
+            if (data.emotions && Array.isArray(data.emotions)) {
+                const sortedEmotions = [...data.emotions].sort((a, b) => b.score - a.score);
+                emotionsContainer.innerHTML = sortedEmotions.map(e => {
+                    const pct = (e.score * 100).toFixed(1);
+                    const color = getEmotionColor(e.label);
+                    return `
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="capitalize font-medium text-slate-700">${e.label}</span>
+                                <span class="text-slate-500">${pct}%</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                <div class="${color} h-full rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Gemini Status Badge
+            if (data.used_gemini) {
+                geminiStatusBadge.innerText = 'Gemini API Active';
+                geminiStatusBadge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200';
+            } else {
+                geminiStatusBadge.innerText = 'Fallback Template Mode';
+                geminiStatusBadge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200';
+            }
+
+            // Sentiment Analysis Report Generation
+            const report = data.sentiment_report;
+            if (report) {
+                sentimentReportBody.innerHTML = `
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-500">Distress Classification:</span>
+                            <span class="font-bold text-slate-800 uppercase">${report.band} (${report.distress_score}/100)</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-500">Primary Emotion:</span>
+                            <span class="font-semibold text-indigo-700 capitalize">${report.primary_emotion}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-500">Sentiment Confidence:</span>
+                            <span class="font-semibold text-slate-800">${report.sentiment_confidence}% (${report.sentiment_label})</span>
+                        </div>
+                        ${data.english_translation ? `
+                        <div class="pt-1 border-t border-slate-200">
+                            <span class="text-slate-500 block mb-0.5">English Translation:</span>
+                            <span class="text-slate-700 italic block bg-white p-2 rounded border border-slate-200">${escapeHtml(data.english_translation)}</span>
+                        </div>
+                        ` : ''}
+                        <div class="pt-1 border-t border-slate-200">
+                            <span class="text-slate-500 block mb-0.5">Clinical Recommendation:</span>
+                            <span class="text-blue-700 font-medium">${escapeHtml(report.recommendation)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function getEmotionColor(label) {
+            switch((label || '').toLowerCase()) {
+                case 'fear': return 'bg-purple-500';
+                case 'sadness': return 'bg-blue-500';
+                case 'anger': return 'bg-red-500';
+                case 'disgust': return 'bg-emerald-600';
+                case 'joy': return 'bg-amber-400';
+                case 'surprise': return 'bg-teal-400';
+                default: return 'bg-slate-400';
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Initialize Sessions on Page Load & Open Chatbot Window Automatically
+        loadSessionsFromStorage();
+        if (Object.keys(activeSessions).length > 0) {
+            const firstSid = Object.keys(activeSessions).sort((a, b) => (activeSessions[b].updatedAt || 0) - (activeSessions[a].updatedAt || 0))[0];
+            switchSession(firstSid);
+        } else {
+            getOrCreateCurrentSession();
+            renderHistorySidebar();
+        }
+
+        // Open chatbot modal window by default on load
+        openChatModal();
+    </script>
+</body>
+</html>

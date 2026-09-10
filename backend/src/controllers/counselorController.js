@@ -99,6 +99,108 @@ const getMyProfile = asyncHandler(async (req, res) => {
   res.json({ success: true, data: counselor });
 });
 
+// @desc    Update counselor profile
+// @route   PUT /api/v1/counselor/profile
+// @access  Private/Counselor
+const updateMyProfile = asyncHandler(async (req, res) => {
+  const authenticatedUserId = req.user?.userId || req.user?.id || req.user?._id;
+  const counselor = await Counselor.findOne({ userId: authenticatedUserId });
+  if (!counselor) {
+    res.status(404);
+    throw new Error('Counselor profile not found for the authenticated user.');
+  }
+
+  const user = await User.findById(authenticatedUserId);
+  if (!user) {
+    res.status(404);
+    throw new Error('Associated user profile not found.');
+  }
+
+  const {
+    name,
+    profession,
+    qualification,
+    about,
+    phone,
+    district,
+    state,
+    experience,
+    gender,
+    specialization
+  } = req.body;
+
+  if (name && name.trim()) counselor.name = name.trim();
+  if (profession && profession.trim()) {
+    counselor.profession = profession.trim();
+    counselor.specialization = profession.trim();
+  }
+  if (specialization && specialization.trim()) {
+    counselor.specialization = specialization.trim();
+  }
+  if (qualification && qualification.trim()) {
+    counselor.qualification = qualification.trim();
+    counselor.qualifications = [qualification.trim(), ...((counselor.qualifications || []).filter((item) => item && item.trim() !== qualification.trim()))].slice(0, 5);
+  }
+  if (about && about.trim()) counselor.about = about.trim();
+
+  if (phone && phone.trim()) {
+    const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+    const phoneRegex = /^(?:\+91|91)?[6-9]\d{9}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+      res.status(400);
+      throw new Error('Please enter a valid 10-digit Indian phone number.');
+    }
+    counselor.phone = cleanPhone;
+  }
+
+  if (district && district.trim()) {
+    counselor.district = district.trim();
+    user.district = district.trim();
+  }
+  if (state && state.trim()) {
+    counselor.state = state.trim();
+    user.state = state.trim();
+  }
+  if (gender && ['Male', 'Female', 'Other', 'Prefer not to say'].includes(gender)) {
+    counselor.gender = gender;
+  }
+  if (experience !== undefined && experience !== null && experience !== '') {
+    const expNum = Number(experience);
+    if (Number.isNaN(expNum) || expNum < 0) {
+      res.status(400);
+      throw new Error('Experience must be a valid positive number.');
+    }
+    counselor.experience = expNum;
+  }
+
+  if (req.file) {
+    const oldImage = counselor.profileImage;
+    const newImagePath = `/uploads/profiles/${req.file.filename}`;
+    counselor.profileImage = newImagePath;
+    user.profileImage = newImagePath;
+
+    if (oldImage && oldImage.startsWith('/uploads/profiles/')) {
+      const oldFilePath = path.join(__dirname, '../../', oldImage);
+      if (fs.existsSync(oldFilePath)) {
+        try {
+          fs.unlinkSync(oldFilePath);
+        } catch (error) {
+          console.error('Failed to delete old counselor profile image:', error.message);
+        }
+      }
+    }
+  }
+
+  await counselor.save();
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Counselor profile updated successfully.',
+    data: counselor
+  });
+});
+
 // @desc    Get assigned victims with distress score analysis & overall counselor metrics
 // @route   GET /api/v1/counselor/victims
 // @access  Private/Counselor
@@ -538,6 +640,7 @@ const streamAssignedCaseDocument = asyncHandler(async (req, res) => {
 module.exports = {
   normalizeObjectId,
   getMyProfile,
+  updateMyProfile,
   getMyVictims,
   getVictimProfileById,
   getVictimMentalHealthDashboard,

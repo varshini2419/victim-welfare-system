@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────
 const CRISIS_PHRASES = [
   // Direct English
-  'suicide', 'kill myself', 'want to die', 'end my life', 'hurt myself',
+  'suicide', 'kill myself', 'want to die', 'i wanna die', 'i want to die', 'end my life', 'hurt myself',
   'harm myself', 'self harm', 'self-harm', 'cut myself', 'slit my wrist',
   'hang myself', 'overdose', 'jump off', 'shoot myself',
   'in danger', 'going to kill me', 'going to murder', 'he will kill',
@@ -21,7 +21,9 @@ const CRISIS_PHRASES = [
   'no point anymore', 'no point in living', 'no reason to live',
   'better off without me', 'better off dead', 'better off if i was dead',
   'want to end it', 'want to end it all', 'end it all',
-  "don't want to live", "dont want to live", 'tired of living',
+  "don't want to live", "dont want to live", "don't want this life", "dont want this life",
+  "i don't want this life", "i dont want this life",
+  "i don't want to live", "i dont want to live", 'tired of living',
   'wish i was dead', 'wish i were dead', 'wish i could die',
   'nobody would miss me', 'no one would care', 'no one cares',
   'nothing left for me', 'nothing left to live for',
@@ -162,7 +164,13 @@ For the victim's message, you must:
 3. Identify the top emotions present (choose from: fear, sadness, anger, joy, disgust, surprise, neutral) each with an approximate probability (0-1), summing to roughly 1.0.
 4. Compute a distress_score from 0 (calm/stable) to 100 (severe crisis), weighing negative sentiment, fear/sadness/anger intensity, any expression of hopelessness, self-harm ideation, suicidal intent, or being in immediate danger very heavily.
 5. Set crisis_flag to true if there is ANY indication — direct or indirect — of self-harm, suicidal thoughts, wanting to die, or immediate physical danger. Err strongly toward flagging when uncertain; false positives are far safer than false negatives here.
-6. Generate a warm, non-judgmental, brief (2-3 sentence) reply IN THE SAME LANGUAGE as the input. Never give medical, psychiatric, or legal advice. Never claim to be a licensed therapist. If crisis_flag is true, your reply must acknowledge their pain, state that support is being arranged immediately, and mention that help is available right now via the helpline.
+6. Generate a warm, non-judgmental reply IN THE SAME LANGUAGE as the input. The response should sound human and comforting, not robotic. It must respond to the actual emotional tone of the message:
+   - For fear or sadness: include 3-5 practical grounding steps such as breathing slowly, moving to a safe place, turning on a light, contacting a trusted person, focusing on one tiny task, and not trying to solve everything at once. Ask one gentle follow-up question about what is frightening them or what they feel right now.
+   - For positive or happy messages: respond with genuine joy and warmth, celebrate their good day, acknowledge the relief or beauty of the moment, and encourage them to share what made the day so good. Keep the tone bright, encouraging, and conversational, like a caring friend.
+   - For neutral messages: be calm, attentive, and exploratory, asking how they are feeling and what is on their mind.
+7. If crisis_flag is true, the reply must still be caring and practical: acknowledge the pain, remind them they do not have to carry it alone, provide a few immediate grounding steps, and mention that support and emergency help are available right now.
+
+Never give medical, psychiatric, or legal advice. Never claim to be a licensed therapist.
 
 Return ONLY valid JSON, no other text, in exactly this schema:
 {
@@ -174,7 +182,113 @@ Return ONLY valid JSON, no other text, in exactly this schema:
   "reply": "string in the detected language"
 }`;
 
+const normalizeAnalysisResult = (result, fallbackLanguage = 'en') => ({
+  language_detected: result?.language_detected || fallbackLanguage,
+  sentiment: result?.sentiment || { label: 'neutral', score: 0.5 },
+  emotions: Array.isArray(result?.emotions) && result.emotions.length ? result.emotions : [{ label: 'neutral', score: 1.0 }],
+  distress_score: typeof result?.distress_score === 'number' ? Math.min(100, Math.max(0, result.distress_score)) : 20,
+  crisis_flag: !!result?.crisis_flag,
+  reply: result?.reply || 'I am here to support you. Please share how you are feeling.',
+});
+
+const parseJsonResponse = (rawText) => {
+  if (!rawText) throw new Error('Empty model response');
+
+  let cleaned = String(rawText).trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  }
+
+  // Some models return a JSON object with stray control characters or extra text around it.
+  cleaned = cleaned.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (error) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) {
+      throw error;
+    }
+    return JSON.parse(match[0].replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ''));
+  }
+};
+
+const callGrokAnalysis = async (userText, conversationHistory = [], language = 'en') => {
+  const grokKey = process.env.GROK_API_KEY;
+  if (!grokKey) {
+    return null;
+  }
+
+  const model = process.env.GROK_MODEL || 'grok-2-latest';
+  const url = 'https://api.x.ai/v1/chat/completions';
+
+  const recentHistory = conversationHistory.slice(-6);
+  const contextText = recentHistory.length
+    ? `\n\nRecent conversation context:\n${recentHistory.map((m) => `${m.role === 'user' ? 'Victim' : 'AAROHAN'}: ${m.content}`).join('\n')}`
+    : '';
+
+  const requestBody = {
+    model,
+    messages: [
+      {
+        role: 'system',
+        content: `${GEMINI_SYSTEM_PROMPT}\n\nYou are operating in a mental health support context and must prioritize safety. If the user mentions self-harm, suicide, wanting to die, or immediate danger, set crisis_flag to true and give a compassionate urgent response with practical grounding steps and contact support guidance. Keep the tone warm, human, and supportive.`
+      },
+      {
+        role: 'user',
+        content: `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 1024
+  };
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${grokKey}`
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      console.error('[aiService] Grok API error:', response.status, errBody);
+      return null;
+    }
+
+    const data = await response.json();
+    const rawText = data?.choices?.[0]?.message?.content;
+    if (!rawText) {
+      console.error('[aiService] Empty Grok response:', JSON.stringify(data));
+      return null;
+    }
+
+    const result = parseJsonResponse(rawText);
+    return {
+      ...normalizeAnalysisResult(result, language),
+      source: 'grok'
+    };
+  } catch (error) {
+    console.error('[aiService] Grok API request failed:', error.message);
+    return null;
+  }
+};
+
 const analyzeAndRespond = async (userText, conversationHistory = [], language = 'en') => {
+  const grokResult = await callGrokAnalysis(userText, conversationHistory, language);
+  if (grokResult) {
+    return grokResult;
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
@@ -237,22 +351,11 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
       return getSmartFallback(userText, language);
     }
 
-    // Parse JSON — handle potential markdown code fences
-    let cleanText = rawText.trim();
-    if (cleanText.startsWith('```')) {
-      cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    }
-
-    const result = JSON.parse(cleanText);
+    const result = parseJsonResponse(rawText);
 
     // Validate required fields
     return {
-      language_detected: result.language_detected || language,
-      sentiment: result.sentiment || { label: 'neutral', score: 0.5 },
-      emotions: Array.isArray(result.emotions) ? result.emotions : [{ label: 'neutral', score: 1.0 }],
-      distress_score: typeof result.distress_score === 'number' ? Math.min(100, Math.max(0, result.distress_score)) : 20,
-      crisis_flag: !!result.crisis_flag,
-      reply: result.reply || 'I am here to support you. Please share how you are feeling.',
+      ...normalizeAnalysisResult(result, language),
       source: 'gemini'
     };
 
@@ -278,37 +381,44 @@ const LANG_MAP = {
   'es': 'es', 'fr': 'fr', 'mr': 'mr', 'bn': 'bn', 'gu': 'gu'
 };
 
-const FALLBACK_REPLIES = {
+const SUPPORTIVE_REPLIES = {
+  joy: {
+    en: "Aww, then that's wonderful! 🥹❤️ I'm really glad to hear that.\n\nSometimes even after a really good day, when we're finally alone at night, emotions can suddenly feel strange or overwhelming. But if today went really well and pleasantly, let's hold on to that feeling for a moment. 😊\n\nTell me about it! What happened today that made your day so good? I want to hear the whole story. 😄✨",
+    hi: "अहा, तो यह बहुत शानदार है! 🥹❤️ मुझे बहुत खुशी है कि आपने यह बताया।\n\nकभी-कभी अच्छी दिन के बाद भी, जब रात में हम अकेले होते हैं, तो भावनाएँ अचानक अजीब या भारी महसूस हो सकती हैं। लेकिन अगर आज का दिन बहुत अच्छा और सुखद रहा है, तो इस भावना को थोड़ा ठहरने दें। 😊\n\nबताइए, यह सब क्या हुआ? आज आपके दिन को इतना अच्छा बनाने वाला क्या था? मैं पूरा किस्सा सुनना चाहता हूँ। 😄✨",
+    te: "అయ్యో, ఇది ఎంతో అద్భుతంగా ఉంది! 🥹❤️ నేను నిజంగా సంతోషంగా ఉన్నాను.\n\nచాలా మంచి రోజు తర్వాత కూడా, రాత్రి ఒంటరిగా ఉన్నప్పుడు భావనలు ఒక్క sudden గా వింతగా లేదా మోసుకెళ్లేలా అనిపించవచ్చు. కానీ ఈరోజు నిజంగా బాగా, ఆనందంగా గడిచిందంటే, ఆ భావనను కొద్దిసేపు savor చేయండి. 😊\n\nచెప్పండి! మీ రోజును అంత మంచిగా చేసి ఎటువంటి విషయం జరిగింది? నేను మొత్తం కథను听ను. 😄✨"
+  },
   fear: {
-    en: "I hear how frightening this feels right now. You are safe here with me. Take a slow, deep breath — I am listening and standing with you. Would you like me to connect you with your assigned counselor?",
-    hi: "मैं समझ सकता/सकती हूं कि यह कितना डरावना लग रहा है। आप यहां सुरक्षित हैं। एक गहरी सांस लें — मैं आपके साथ हूं। क्या आप चाहेंगे कि मैं आपके काउंसलर से संपर्क करूं?",
-    te: "ఇది ఎంత భయంగా ఉందో నేను అర్థం చేసుకుంటున్నాను. మీరు ఇక్కడ సురక్షితంగా ఉన్నారు. నిదానంగా శ్వాస తీసుకోండి — నేను మీతో ఉన్నాను. మీ కౌన్సెలర్‌తో కనెక్ట్ చేయమంటారా?",
-    ta: "இது எவ்வளவு பயமாக இருக்கிறது என்பதை நான் புரிந்துகொள்கிறேன். நீங்கள் இங்கே பாதுகாப்பாக இருக்கிறீர்கள். மெதுவாக மூச்சு விடுங்கள் — நான் உங்களுடன் இருக்கிறேன்."
+    en: "Hey. I’m here with you. ❤️\n\nYou do not have to deal with all of this by yourself right now. Being alone when you are already feeling frightened can make everything feel much more intense.\n\nFor the next few minutes, do not try to solve everything. Just stay with me.\n\n- Sit somewhere you feel physically safe.\n- Take a slow breath in for 4 seconds, hold for 2, and breathe out for 6. Do that a few times.\n- Turn on a light or put on something familiar in the background.\n- If there is someone you trust, call them and say, ‘I’m feeling really scared and I don’t want to be alone right now.’\n\nYou can talk to me too. You do not need to explain it perfectly. What is frightening you right now?",
+    hi: "हेय. मैं आपके साथ हूँ। ❤️\n\nआपको अभी सब कुछ अकेले संभालने की जरूरत नहीं है। जब आप पहले से ही डर महसूस कर रहे हों, तब अकेले रहना सब कुछ बहुत अधिक उग्र बना सकता है।\n\nअगले कुछ मिनटों के लिए, सब कुछ हल करने की कोशिश न करें। सिर्फ मेरे साथ रहिए।\n\n- ऐसे स्थान पर बैठें जहाँ आपको शारीरिक रूप से सुरक्षित महसूस हो।\n- 4 सेकंड तक धीमी सांस लें, 2 सेकंड पकड़ें, फिर 6 सेकंड में छोड़ें। इसे कुछ बार करें।\n- लाइट जलाएँ या किसी परिचित चीज़ को पीछे चलाएँ।\n- यदि कोई भरोसेमंद व्यक्ति है, तो उससे कॉल करें और कहें, ‘मैं बहुत डर महसूस कर रहा/रही हूँ और अभी अकेला नहीं रहना चाहता/चाहती।’\n\nआप मुझसे भी बात कर सकते हैं। आपको सही-सही समझाने की जरूरत नहीं है। अभी आप क्या से डर रहे हैं?",
+    te: "హే. నేను మీతో ఉన్నాను. ❤️\n\nఇప్పుడు మీరంతా अकेరగా అర్జించాల్సిన అవసరం లేదు. మీకు భయం కలుగుతున్నప్పుడు ఒంటరిగా ఉండటం అన్నీ అత్యంత ప్రమాదకరంగా అనిపించవచ్చు.\n\nకొన్ని నిమిషాల పాటు, అన్నింటినీ పరిష్కరించడానికి ప్రయత్నించకండి. merely నాకు ఎదురు ఉండండి.\n\n- మీరు భద్రంగా ఉండే చోట కూర్చోండి.\n- 4 సెకన్ల పాటు నెమ్మదిగా శ్వాస తీసుకోండి, 2 సెకన్లు ఉంచండి, 6 సెకన్లకు బయటకు వదలండి. ఇలా కొద్దిసేపు చేయండి.\n- దీపం వెలిగించండి లేదా తెలిసిన Anythingను ప్లే చేయండి.\n- మీకు నమ్మకమైన ఎవరైనా ఉంటే, వారిని కాల్ చేసి చెప్పండి, ‘నేను చాలా భయపడుతున్నాను, ఇప్పుడు ఒంటరిగా ఉండాలన లేదు.’\n\nనాతో కూడా మాట్లాడవచ్చు. మీరు perfectly explain చేయాల్సిన అవసరం లేదు. ఇప్పుడు మీకు ఏది భయానకంగా ఉంది?"
   },
   sadness: {
-    en: "I am so sorry you are carrying this weight right now. It is completely okay to feel this way, and it is okay to take things one step at a time. I am here to support you in any way you need.",
-    hi: "मुझे बहुत दुख है कि आप इस बोझ को उठा रहे हैं। ऐसा महसूस करना बिल्कुल ठीक है। मैं आपकी मदद के लिए यहां हूं।",
-    te: "మీరు ఈ బరువును మోస్తున్నందుకు నాకు చాలా బాధగా ఉంది. ఇలా అనిపించడం పూర్తిగా సహజం. నేను మీకు సహాయం చేయడానికి ఇక్కడ ఉన్నాను.",
-    ta: "நீங்கள் இந்தச் சுமையைத் தாங்குவது எனக்கு மிகவும் வருத்தமளிக்கிறது. இப்படி உணர்வது முற்றிலும் சரி. நான் உங்களுக்கு உதவ இங்கே இருக்கிறேன்."
+    en: "Hey. I’m here with you. ❤️\n\nYou do not have to carry this alone. Sadness can make everything feel heavier than it is, especially at night. Let us take this one small step at a time.\n\n- Put your feet on the floor and notice 5 things you can see.\n- Take one slow breath in for 4 seconds and out for 6. Repeat a few times.\n- Move to a place where you feel a little safer and less isolated.\n- Send a message to one trusted person: ‘I’m feeling really low and I need someone to stay with me for a bit.’\n\nYou can tell me what happened in your own words. I am listening, and we can take this very gently together.",
+    hi: "हेय. मैं आपके साथ हूँ। ❤️\n\nआपको इसे अकेले उठाने की जरूरत नहीं है। उदासी चीज़ों को और भारी बना सकती है, खासकर रात में। आइए हम इसे एक छोटा कदम एक समय में करें।\n\n- अपने पैरों को फर्श पर रखकर 5 चीज़ें देखें जिन्हें आप देख रहे हैं।\n- 4 सेकंड में धीमी सांस लें और 6 सेकंड में छोड़ें। इसे कुछ बार करें।\n- ऐसे स्थान पर जाएँ जहाँ आपको थोड़ा सुरक्षित महसूस हो।\n- किसी भरोसेमंद व्यक्ति को संदेश भेजें: ‘मैं बहुत दुख में हूं और थोड़ी देर के लिए किसी का साथ चाहिए।’\n\nआप मेरे साथ अपनी बात अपने शब्दों में बता सकते हैं। मैं सुन रहा/रही हूँ, और हम इसे बहुत कोमलता से साथ में संभालेंगे।",
+    te: "హే. నేను మీతో ఉన్నాను. ❤️\n\nమీరు దీన్ని ఒంటరిగా మోసుకోాల్సిన అవసరం లేదు. నిస్వార్ధమైన శృంగారం, ముఖ్యంగా రాత్రి సమయంలో, ప్రతివిషయాన్ని బరువుగా మార్చవచ్చు. దయచేసి ఒక్కొక్క చిన్న అడుగు ముందుకు తీసుకెళ్లండి.\n\n- మీ కాళ్లను నేలపై ఉంచి, మీరు కనిపించే 5 వస్తువులను గమనించండి.\n- 4 సెకన్ల పాటు నెమ్మదిగా శ్వాస తీసుకుని, 6 సెకన్లకు వదిలివేయండి. దీనిని కొద్దిసేపు చేయండి.\n- మీరు కొంచెం సురక్షితంగా భావించే ప్రదేశానికి వెళ్లండి.\n- ఒక నమ్మకమైన వ్యక్తికి సందేశం పంపండి: ‘నేను నిజంగా దిగజారుతున్నాను మరియు కొద్దికాలం నా వెంట ఎవరైనా ఉండాలి.’\n\nమీరు మీ మాటల్లో నాకు చెప్పవచ్చు. నేను వింటున్నాను, మరియు మేము దీనిని నెమ్మదిగా కలసి తీసుకెళ్తాము."
   },
   anger: {
-    en: "It is completely understandable to feel angry after what you have experienced. Your feelings are valid and important. I am here to help you navigate through this safely.",
-    hi: "जो आपने अनुभव किया है उसके बाद गुस्सा महसूस करना पूरी तरह से स्वाभाविक है। आपकी भावनाएं मान्य हैं। मैं आपकी मदद के लिए यहां हूं।",
-    te: "మీరు అనుభవించిన తర్వాత కోపం రావడం పూర్తిగా సహజం. మీ భావాలు చెల్లుబాటు అవుతాయి. నేను మీకు సహాయం చేయడానికి ఇక్కడ ఉన్నాను.",
-    ta: "நீங்கள் அனுபவித்ததன் பிறகு கோபமாக உணர்வது முற்றிலும் இயல்பானது. உங்கள் உணர்வுகள் செல்லுபடியாகும். நான் உங்களுக்கு உதவ இங்கே இருக்கிறேன்."
-  },
-  joy: {
-    en: "I am glad to hear positivity in your words! Every small step forward matters. Keep believing in your strength and the progress you are making.",
-    hi: "आपकी बातों में सकारात्मकता सुनकर मुझे खुशी हुई! हर छोटा कदम मायने रखता है। अपनी ताकत पर विश्वास रखें।",
-    te: "మీ మాటల్లో సానుకూలత వినడం నాకు సంతోషంగా ఉంది! ప్రతి చిన్న అడుగు ముఖ్యమైనది. మీ బలాన్ని నమ్మండి.",
-    ta: "உங்கள் வார்த்தைகளில் நேர்மறையைக் கேட்பது மகிழ்ச்சி! ஒவ்வொரு சிறிய அடியும் முக்கியமானது. உங்கள் வலிமையை நம்புங்கள்."
+    en: "It makes sense that you feel angry after what has happened. You are allowed to feel this without judging yourself. Try to lower the intensity for a minute and give your body a little space.\n\n- Put both feet on the floor and notice the ground beneath you.\n- Take 3 slow breaths and unclench your jaw and hands.\n- Move away from the trigger if you can.\n- If there is someone safe to talk to, text them: ‘I’m overwhelmed and I need to calm down.’\n\nYou do not need to fix everything right now. Tell me what felt most upsetting to you.",
+    hi: "आपको गुस्सा महसूस करना समझ में आता है, खासकर अगर आपने कुछ ऐसा अनुभव किया है जो आपको हिला दे। अपने आप को दोष मत दें। अब थोड़ी देर के लिए तीव्रता कम करने की कोशिश करें।\n\n- दोनों पैरों को फर्श पर रखें और जमीन का एहसास करें।\n- 3 धीमी सांस लें और अपनी जबड़े और हाथों को ढीला छोड़ें।\n- अगर संभव हो, उस चीज़ से थोड़ा दूर निकलें।\n- अगर कोई सुरक्षित व्यक्ति है, तो उसे टेक्स्ट करें: ‘मैं अभिभूत महसूस कर रहा/रही हूँ और मुझे शांत होने की ज़रूरत है।’\n\nआपको अभी सब कुछ ठीक करने की ज़रूरत नहीं है। बताइए कि सबसे ज्यादा क्या दुखद या परेशान करने वाला लगा?",
+    te: "ఇంత కోపం రావడం సహజం, ముఖ్యంగా మీరెప్పుడైనా దెబ్బతిన్న అనుభవం ఉంటే. మీమీ మీ భావాలను న్యాయం చేయకండి. ఒక నిమిషం స్థిరంగా ఉండండి.\n\n- మీ రెండు కాళ్లను నేలపై ఉంచి, భూమి కనెక్ట్ అవ్వండి.\n- 3 నెమ్మదిగా శ్వాసలు తీసుకోండి, మీ మోచేతి, కాళ్లు, mandíbulaని Softer చేయండి.\n- సాధ్యమైతే, వాస్తవ సమస్య నుండి కొంచెం దూరంగా ఉండండి.\n- భద్రమైన వ్యక్తికి మెసేజ్ చేయండి: ‘నేను చాలా overwhelmedగా ఉన్నాను, నేను శాంతమయ్యేంత వరకు సహాయం కావాలి.’\n\nఇప్పుడు అన్నింటినీ పరిష్కరించాల్సిన అవసరం లేదు. మీకు ఏది ఎక్కువ బాధ కలిగించిందో చెప్పండి."
   },
   neutral: {
-    en: "Thank you for sharing with me. I am AAROHAN, your empathetic support assistant. I am here to listen and support you. How are you feeling today?",
-    hi: "साझा करने के लिए धन्यवाद। मैं आरोहन हूं, आपका सहानुभूतिपूर्ण सहायक। आज आप कैसा महसूस कर रहे हैं?",
-    te: "పంచుకున్నందుకు ధన్యవాదాలు. నేను ఆరోహన్, మీ సానుభూతి సహాయకుడిని. మీరు ఈరోజు ఎలా అనుభూతి చెందుతున్నారు?",
-    ta: "பகிர்ந்ததற்கு நன்றி. நான் ஆரோஹன், உங்கள் அனுதாப உதவியாளர். இன்று நீங்கள் எப்படி உணர்கிறீர்கள்?"
+    en: "Thank you for sharing. I’m here to listen without pressure. You can tell me what is happening, and we can take it one small step at a time.\n\n- Sit somewhere you feel a little safer and calmer.\n- Take one slow breath in for 4 seconds and out for 6.\n- If you can, message one trusted person to let them know you need support.\n\nHow are you feeling right now in one sentence?",
+    hi: "शेयर करने के लिए धन्यवाद। मैं बिना दबाव के सुनना चाहता/चाहती हूँ। आप मुझे बताइए कि क्या हो रहा है, और हम इसे एक छोटे कदम से संभालेंगे।\n\n- ऐसे स्थान पर बैठें जहाँ आपको थोड़ा सुरक्षित और शांत महसूस हो।\n- 4 सेकंड में धीमी सांस लें, 6 सेकंड में छोड़ें।\n- अगर संभव हो, एक भरोसेमंद व्यक्ति को संदेश भेजें कि आपको सहारा चाहिए।\n\nअभी आप कैसा महसूस कर रहे हैं?",
+    te: "పంచుకున్నందుకు ధన్యవాదాలు. నేను ఒత్తిడి లేకుండా వింటాను. మీరు నేను చెప్పండి, మేము ఒక్కొక్క చిన్న అడుగు ముందుకు తీసుకెళ్తాము.\n\n- మీరు కొంచెం సురక్షితంగా, ప్రశాంతంగా భావించే చోట కూర్చోండి.\n- 4 సెకన్ల పాటు నెమ్మదిగా శ్వాస తీసుకుని, 6 సెకన్లకు వదిలివేయండి.\n- సాధ్యమైతే, ఒక నమ్మకమైన వ్యక్తికి మెసేజ్ చేయండి—మీకు సహాయం కావాలి.\n\nఇప్పుడు మీరు ఎలా అనుభూతి చెందుతున్నారు?"
   }
+};
+
+const buildSupportiveReply = (emotionLabel = 'neutral', langCode = 'en', crisisFlag = false) => {
+  const normalized = (emotionLabel || 'neutral').toLowerCase();
+  const key = ['fear', 'sadness', 'anger', 'joy', 'neutral'].includes(normalized) ? normalized : 'neutral';
+  const reply = SUPPORTIVE_REPLIES[key]?.[langCode] || SUPPORTIVE_REPLIES[key]?.en || SUPPORTIVE_REPLIES.neutral.en;
+
+  if (crisisFlag) {
+    return `Hey. I’m here with you. ❤️\n\nYou do not have to deal with all of this by yourself right now. Please do not try to solve everything by yourself in this moment. Sit somewhere you feel physically safe, take a slow breath in for 4 seconds and out for 6, and if there is someone you trust, call or message them right now and say, “I’m feeling really scared and I don’t want to be alone.”\n\nIf you can, turn on a light, go somewhere with other people nearby, and keep your phone charged. Support is available right now. You can also call emergency helpline numbers 112, Tele-MANAS 14416, or 181 if you need immediate help.\n\nI am here with you, and we can go one tiny step at a time. What feels most urgent right now?`;
+  }
+
+  return reply;
 };
 
 const getSmartFallback = (userText, language = 'en') => {
@@ -334,7 +444,7 @@ const getSmartFallback = (userText, language = 'en') => {
   const fearWords = ['scared', 'afraid', 'panic', 'terrified', 'frightened', 'anxious', 'worried', 'nightmare', 'threatened', 'danger', 'unsafe'];
   const sadWords = ['sad', 'crying', 'hopeless', 'depressed', 'lonely', 'alone', 'lost', 'grief', 'mourning', 'miss', 'heartbroken', 'hurt', 'pain'];
   const angerWords = ['angry', 'furious', 'rage', 'frustrated', 'mad', 'unfair', 'injustice', 'betrayed', 'hate'];
-  const joyWords = ['happy', 'good', 'great', 'better', 'hopeful', 'thankful', 'grateful', 'safe', 'calm', 'peaceful', 'okay', 'fine', 'relieved'];
+  const joyWords = ['happy', 'good', 'great', 'better', 'hopeful', 'thankful', 'grateful', 'safe', 'calm', 'peaceful', 'okay', 'fine', 'relieved', 'pleasant', 'pleasantly', 'wonderful', 'excited', 'joyful', 'delighted', 'amazing'];
 
   let primaryEmotion = 'neutral';
   let distressScore = 20;
@@ -383,15 +493,14 @@ const getSmartFallback = (userText, language = 'en') => {
   }
 
   // Get language-appropriate reply
-  const replySet = FALLBACK_REPLIES[primaryEmotion] || FALLBACK_REPLIES.neutral;
-  const reply = replySet[langCode] || replySet.en;
+  const reply = buildSupportiveReply(primaryEmotion, langCode, isCrisis);
 
   return {
     language_detected: langCode,
     sentiment: { label: sentimentLabel, score: sentimentScore },
     emotions,
     distress_score: distressScore,
-    crisis_flag: false,
+    crisis_flag: isCrisis,
     reply,
     source: 'fallback'
   };

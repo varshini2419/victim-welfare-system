@@ -26,6 +26,36 @@ const EMOTION_ICONS = {
   Neutral: '😐 Neutral'
 };
 
+const QUICK_PROMPTS = [
+  'I feel overwhelmed today',
+  'I want to talk about what happened',
+  'I feel hopeful and calm right now',
+  'I need support and guidance'
+];
+
+const QUICK_PROMPT_RESPONSES = {
+  'I feel overwhelmed today': {
+    en: 'I am really sorry you are feeling overwhelmed. Please take three slow breaths and focus on just one small step at a time. You do not have to carry everything at once. If it helps, tell me what feels heaviest right now.',
+    te: 'మీకు ఎంత బరువుగా ఉందో నాకు తెలుసు. మూడు నెమ్మదిగా శ్వాసలు తీసుకోండి. ఒక్క చిన్న అడుగు మాత్రమే examine చేయండి. అన్నీ ఒకేసారి తట్టుకోవలసిన అవసరం లేదు. ఏది మీకు ఎక్కువ బరువుగా ఉంది అని చెప్పగలరో, అప్పుడు నేను మీకు సహాయం చేసేదాన్ని.',
+    hi: 'मैं समझता हूँ कि आप बहुत overwhelmed महसूस कर रहे हैं। तीन गहरी साँस लें और बस एक छोटा कदम उठाएँ। आपको सब कुछ एक साथ संभालने की जरूरत नहीं है। अगर मदद मिले, तो बताइए कि अभी सबसे ज़्यादा क्या भारी लग रहा है।'
+  },
+  'I want to talk about what happened': {
+    en: 'Thank you for trusting me. You can tell me what happened, one part at a time, and I will listen without judgment. You do not need to explain everything perfectly. Start with the part that feels hardest to carry.',
+    te: 'నాకు నమ్మినందుకు ధన్యవాదాలు. మీరు ఏమి జరిగింది చెప్పవచ్చు, ఒక్కొక్క భాగంగా. నేను మీకు తీర్పు లేకుండా వినేదాన్ని. అన్నీ సరైపోవాలనే అవసరం లేదు. మీకు ఎక్కువ బరువుగా ఉన్న భాగం నుంచి మొదలుపెట్టండి.',
+    hi: 'ऐसा साझा करने के लिए धन्यवाद। आप मुझे घटना के बारे में एक-एक हिस्सा बताकर बता सकते हैं, मैं बिना न्याय किए सुनूँगा। आपको सब कुछ सही तरीके से समझाने की ज़रूरत नहीं है। सबसे कठिन हिस्सा से शुरू करें।'
+  },
+  'I feel hopeful and calm right now': {
+    en: 'That is a very positive sign. It is okay to notice and hold on to this calm moment. You can keep this feeling by taking a quiet breath, noticing one good thing around you, and allowing yourself to feel safe for a little while.',
+    te: 'ఇది మంచి సంకేతం. ఈ ప్రశాంతతను గుర్తించి, దాన్ని నిలుపుకోవడం మంచిది. నెమ్మదిగా శ్వాస తీసుకోండి, మీ చుట్టూ ఉన్న ఒక్క మంచి విషయం పరిగణించండి, మరియు మీరు కొంతకాలం భద్రతగా ఉందనే భావాన్ని అనుభవించండి.',
+    hi: 'यह बहुत अच्छी बात है। इस शांति के पल को पहचानें और उसे संभालकर रखें। एक गहरी साँस लें, चारों ओर एक अच्छी चीज़ देखें, और कुछ देर के लिए खुद को सुरक्षित महसूस करने दें।'
+  },
+  'I need support and guidance': {
+    en: 'I am here with you. We can take this one step at a time. First, pause and breathe. Then choose one small action that can help you feel safer or more stable today. I will stay with you through it.',
+    te: 'నేను మీతో ఉన్నాను. ఈ సమస్యను ఒక అడుగు씩 మాత్రమే పరిష్కరిద్దాం. ముందుగా నిశ్చలంగా శ్వాస తీసుకోండి. ఆ తరువాత, ఈరోజు మీకు భద్రత లేదా స్థిరత్వం ఇవ్వగల ఒక చిన్న చర్యను ఎంచుకోండి. నేను మీకు సహాయం చేస్తూ ఉన్నట్లే.',
+    hi: 'मैं आपके साथ हूँ। हम इसे एक कदम씩 संभालेंगे। पहले थोड़ी देर रुककर साँस लें। फिर आज आपको सुरक्षित और स्थिर महसूस कराने वाला एक छोटा कदम चुनें। मैं आपके साथ हूँ।'
+  }
+};
+
 export default function Chatbot() {
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
@@ -41,7 +71,7 @@ export default function Chatbot() {
   const [autoTts, setAutoTts] = useState(true);
   const [speakingMsgId, setSpeakingMsgId] = useState(null);
   const [latestAnalysis, setLatestAnalysis] = useState(null);
-  const [showDashboard, setShowDashboard] = useState(true);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -371,6 +401,40 @@ export default function Chatbot() {
     }
   };
 
+  const getReplyForQuickPrompt = (prompt) => {
+    const langKey = selectedLang.startsWith('te') ? 'te' : selectedLang.startsWith('hi') ? 'hi' : 'en';
+    const preset = QUICK_PROMPT_RESPONSES[prompt];
+    return preset?.[langKey] || preset?.en || 'I am here to support you.';
+  };
+
+  const handleQuickPrompt = (prompt) => {
+    const userMessage = {
+      id: `quick-${Date.now()}`,
+      role: 'user',
+      content: prompt,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const responseText = getReplyForQuickPrompt(prompt);
+    const aiMessage = {
+      id: `quick-ai-${Date.now()}`,
+      role: 'system',
+      content: responseText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      sentiment: 'positive',
+      emotion: 'Calm'
+    };
+
+    setMessages((prev) => [...prev, userMessage, aiMessage]);
+    setInputValue('');
+    if (autoTts) {
+      speakText(responseText, aiMessage.id);
+    }
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
   if (loading && !activeSessionId && sessions.length === 0) {
     return <div className="loading-state">Loading victim support assistant...</div>;
   }
@@ -380,10 +444,10 @@ export default function Chatbot() {
       {/* 1. TOP HEADER WITH MULTILINGUAL CONTROLS */}
       <div className="chatbot-top-header">
         <div className="chatbot-header-left">
-          <img src="/images/emblem.png" alt="Govt Emblem" className="chatbot-header-logo" />
+          <div className="chatbot-header-icon">💬</div>
           <div>
-            <h1>Govt. Victim Support Assistant (AAROHAN)</h1>
-            <span className="chatbot-subtitle">Empathetic AI Support &amp; Emotion Analysis Portal</span>
+            <h1>Victim Support Chat</h1>
+            <span className="chatbot-subtitle">Private, supportive, and easy to use</span>
           </div>
         </div>
 
@@ -457,9 +521,34 @@ export default function Chatbot() {
                 </div>
                 <p className="empty-main-text">Welcome to AAROHAN Empathetic Support</p>
                 <p className="empty-subtext">You can type or speak into your microphone in your preferred language.</p>
+                <div className="quick-prompts">
+                  {QUICK_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="quick-prompt"
+                      onClick={() => handleQuickPrompt(prompt)}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="messages-list">
+              <>
+                <div className="quick-prompts messages-quick-prompts">
+                  {QUICK_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="quick-prompt"
+                      onClick={() => handleQuickPrompt(prompt)}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+                <div className="messages-list">
                 {messages.map((msg) => (
                   <div 
                     key={msg.id} 
@@ -518,141 +607,14 @@ export default function Chatbot() {
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
-              </div>
+                  <div ref={messagesEndRef} />
+                </div>
+              </>
             )}
           </div>
 
-          {/* Live Distress Dashboard Panel */}
-          {showDashboard && latestAnalysis && (
-            <div className="distress-dashboard-panel" style={{
-              borderTop: '2px solid #e2e8f0',
-              padding: '0.75rem 1rem',
-              backgroundColor: latestAnalysis.crisis_flag ? '#fef2f2' : '#f1f5f9',
-              fontSize: '0.78rem'
-            }}>
-              {/* Crisis Alert */}
-              {latestAnalysis.crisis_flag && (
-                <div style={{
-                  backgroundColor: '#dc2626', color: '#fff', padding: '6px 10px',
-                  borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold',
-                  marginBottom: '8px', textAlign: 'center'
-                }}>
-                  ⚠️ CRISIS DETECTED — Immediate helplines: 112 | Tele-MANAS: 14416 | Women: 181
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                {/* Distress Gauge */}
-                <div style={{ flex: '1 1 160px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: '600', color: '#334155' }}>Distress Score</span>
-                    <span style={{
-                      backgroundColor: latestAnalysis.distress_score >= 75 ? '#ef4444' :
-                        latestAnalysis.distress_score >= 50 ? '#f97316' :
-                        latestAnalysis.distress_score >= 25 ? '#eab308' : '#22c55e',
-                      color: '#fff', padding: '2px 8px', borderRadius: '10px',
-                      fontWeight: '700', fontSize: '0.72rem'
-                    }}>
-                      {Math.round(latestAnalysis.distress_score)} — {
-                        latestAnalysis.distress_score >= 75 ? 'SEVERE' :
-                        latestAnalysis.distress_score >= 50 ? 'HIGH RISK' :
-                        latestAnalysis.distress_score >= 25 ? 'MODERATE' : 'STABLE'
-                      }
-                    </span>
-                  </div>
-                  <div style={{ width: '100%', height: '10px', backgroundColor: '#e2e8f0', borderRadius: '5px', overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${Math.min(100, latestAnalysis.distress_score)}%`,
-                      height: '100%',
-                      backgroundColor: latestAnalysis.distress_score >= 75 ? '#ef4444' :
-                        latestAnalysis.distress_score >= 50 ? '#f97316' :
-                        latestAnalysis.distress_score >= 25 ? '#eab308' : '#22c55e',
-                      borderRadius: '5px',
-                      transition: 'width 0.6s ease'
-                    }} />
-                  </div>
-                  <div style={{ display: 'flex', gap: '2px', marginTop: '3px', height: '4px' }}>
-                    <div style={{ flex: 1, backgroundColor: '#22c55e', borderRadius: '2px' }} />
-                    <div style={{ flex: 1, backgroundColor: '#eab308', borderRadius: '2px' }} />
-                    <div style={{ flex: 1, backgroundColor: '#f97316', borderRadius: '2px' }} />
-                    <div style={{ flex: 1, backgroundColor: '#ef4444', borderRadius: '2px' }} />
-                  </div>
-                </div>
-
-                {/* Emotion Bars */}
-                <div style={{ flex: '1 1 180px' }}>
-                  <span style={{ fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Emotions</span>
-                  {(latestAnalysis.emotions || []).slice(0, 4).map((em, i) => {
-                    const emotionColors = { fear: '#ef4444', sadness: '#3b82f6', anger: '#f97316', joy: '#22c55e', disgust: '#a855f7', surprise: '#eab308', neutral: '#94a3b8' };
-                    return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
-                        <span style={{ width: '60px', textTransform: 'capitalize', color: '#475569', fontSize: '0.72rem' }}>
-                          {em.label}
-                        </span>
-                        <div style={{ flex: 1, height: '7px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                          <div style={{
-                            width: `${Math.round((em.score || 0) * 100)}%`,
-                            height: '100%',
-                            backgroundColor: emotionColors[em.label] || '#94a3b8',
-                            borderRadius: '4px',
-                            transition: 'width 0.5s ease'
-                          }} />
-                        </div>
-                        <span style={{ width: '30px', textAlign: 'right', color: '#64748b', fontSize: '0.7rem' }}>
-                          {Math.round((em.score || 0) * 100)}%
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Info Chips */}
-                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
-                  {latestAnalysis.sentiment && (
-                    <span style={{
-                      backgroundColor: latestAnalysis.sentiment.label === 'negative' ? '#fecaca' :
-                        latestAnalysis.sentiment.label === 'positive' ? '#bbf7d0' : '#fef3c7',
-                      color: latestAnalysis.sentiment.label === 'negative' ? '#991b1b' :
-                        latestAnalysis.sentiment.label === 'positive' ? '#166534' : '#92400e',
-                      padding: '3px 8px', borderRadius: '10px', fontSize: '0.72rem',
-                      fontWeight: '600', textTransform: 'capitalize', textAlign: 'center'
-                    }}>
-                      {latestAnalysis.sentiment.label} ({Math.round((latestAnalysis.sentiment.score || 0) * 100)}%)
-                    </span>
-                  )}
-                  {latestAnalysis.language_detected && (
-                    <span style={{
-                      backgroundColor: '#e0f2fe', color: '#0369a1',
-                      padding: '3px 8px', borderRadius: '10px', fontSize: '0.72rem',
-                      fontWeight: '600', textAlign: 'center'
-                    }}>
-                      🌐 {latestAnalysis.language_detected.toUpperCase()}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowDashboard(false)}
-                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.7rem', cursor: 'pointer', marginTop: '4px', padding: 0 }}
-              >
-                ▲ Hide analysis panel
-              </button>
-            </div>
-          )}
-
-          {!showDashboard && latestAnalysis && (
-            <button
-              onClick={() => setShowDashboard(true)}
-              style={{
-                width: '100%', background: '#f1f5f9', border: 'none', borderTop: '1px solid #e2e8f0',
-                color: '#64748b', fontSize: '0.72rem', cursor: 'pointer', padding: '4px 0', fontWeight: '500'
-              }}
-            >
-              ▼ Show distress analysis panel
-            </button>
-          )}
+          {/* Analysis panel intentionally hidden from the victim chat UI.
+              Emotional insights are kept for counselor-side victim profiles and daily/session reports only. */}
 
           {/* Voice Input Prompt when listening */}
           {isListening && (

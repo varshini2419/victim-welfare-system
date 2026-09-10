@@ -130,6 +130,24 @@ export default function Login() {
       backgroundColor: '#f1f5f9',
       padding: '1.5rem'
     }}>
+      <div style={{ position: 'fixed', top: '1.25rem', left: '1.25rem', zIndex: 20 }}>
+        <Link to="/" style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#ffffff',
+          color: '#0f172a',
+          border: '1px solid #dbeafe',
+          borderRadius: '999px',
+          padding: '0.6rem 1rem',
+          fontSize: '0.8rem',
+          fontWeight: '700',
+          textDecoration: 'none',
+          boxShadow: '0 8px 18px rgba(15, 23, 42, 0.08)'
+        }}>
+          Home
+        </Link>
+      </div>
       <div style={{
         maxWidth: '440px',
         width: '100%',

@@ -37,6 +37,23 @@ export default function AdminLogin() {
       backgroundColor: '#0f172a',
       padding: '1rem'
     }}>
+      <div style={{ position: 'fixed', top: '1.25rem', left: '1.25rem', zIndex: 20 }}>
+        <Link to="/" style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#ffffff',
+          color: '#0f172a',
+          border: '1px solid rgba(15, 23, 42, 0.1)',
+          borderRadius: '999px',
+          padding: '0.6rem 1rem',
+          fontSize: '0.8rem',
+          fontWeight: '700',
+          textDecoration: 'none'
+        }}>
+          Home
+        </Link>
+      </div>
       <div style={{
         maxWidth: '400px',
         width: '100%',

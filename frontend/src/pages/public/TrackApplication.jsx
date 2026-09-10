@@ -9,36 +9,37 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
 const StatusBadge = ({ status }) => {
   const configs = {
     pending: {
-      bg: "bg-amber-900/30",
-      border: "border-amber-500/50",
-      text: "text-amber-300",
-      dot: "bg-amber-400",
+      bg: "bg-amber-50",
+      border: "border-amber-200",
+      text: "text-amber-700",
+      dot: "bg-amber-500",
       label: "PENDING REVIEW",
-      icon: "?",
+      icon: "⏳",
     },
     approved: {
-      bg: "bg-green-900/30",
-      border: "border-green-500/50",
-      text: "text-green-300",
-      dot: "bg-green-400",
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
+      text: "text-emerald-700",
+      dot: "bg-emerald-500",
       label: "APPROVED",
-      icon: "?",
+      icon: "✓",
     },
     rejected: {
-      bg: "bg-red-900/30",
-      border: "border-red-500/50",
-      text: "text-red-300",
-      dot: "bg-red-400",
+      bg: "bg-rose-50",
+      border: "border-rose-200",
+      text: "text-rose-700",
+      dot: "bg-rose-500",
       label: "NOT APPROVED",
-      icon: "?",
+      icon: "!",
     },
   };
   const c = configs[status] || configs.pending;
+
   return (
     <span
-      className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold border ${c.bg} ${c.border} ${c.text}`}
+      className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border ${c.bg} ${c.border} ${c.text}`}
     >
-      <span className={`w-2 h-2 rounded-full ${c.dot} animate-pulse`}></span>
+      <span className={`w-2 h-2 rounded-full ${c.dot}`}></span>
       {c.icon} {c.label}
     </span>
   );
@@ -84,7 +85,7 @@ const TrackApplication = () => {
   };
 
   const formatDate = (iso) => {
-    if (!iso) return "�";
+    if (!iso) return "—";
     return new Date(iso).toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "long",
@@ -95,185 +96,219 @@ const TrackApplication = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col">
       <PublicNavbar />
-      <main className="flex-1 flex flex-col items-center px-4 py-16">
-        <div className="text-center mb-12 max-w-2xl">
-          <div className="inline-flex items-center gap-2 bg-blue-900/30 border border-blue-500/30 text-blue-300 text-xs font-semibold px-4 py-1.5 rounded-full mb-4 tracking-wider">
-            AAROHAN VICTIM WELFARE SYSTEM
-          </div>
-          <h1 className="text-4xl font-extrabold text-white mb-3 tracking-tight">
-            Track Your Application
-          </h1>
-          <p className="text-gray-400 text-sm leading-relaxed">
-            Enter your Registration ID to view the current status of your application. The
-            Registration ID was provided when you completed registration.
-          </p>
-        </div>
 
-        {/* Search Card */}
-        <div className="w-full max-w-xl bg-gray-900 border border-gray-700/60 rounded-2xl p-8 shadow-2xl mb-8">
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-            Registration ID
-          </label>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={inputId}
-              onChange={(e) => setInputId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && doSearch()}
-              placeholder="ARH-REG-A7F93E1B8C245D60"
-              className="flex-1 bg-gray-800 border border-gray-600 text-white text-sm rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-mono placeholder-gray-600"
-            />
-            <button
-              onClick={() => doSearch()}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {loading ? "Checking�" : "CHECK STATUS"}
-            </button>
+      <main className="flex-1 px-4 py-10 md:px-8 lg:px-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700 mb-3">
+              AAROHAN VICTIM WELFARE SYSTEM
+            </p>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 mb-4">
+              Track Your Application
+            </h1>
+            <p className="max-w-3xl text-base md:text-lg text-slate-600 leading-relaxed">
+              Enter your registration ID to view the current status of your application.
+              Your ID was provided when you completed registration.
+            </p>
           </div>
-          <p className="text-gray-600 text-xs mt-3">
-            Example: <span className="font-mono text-gray-500">ARH-REG-A7F93E1B8C245D60</span>
-          </p>
-        </div>
 
-        {/* Error Banner */}
-        {error && (
-          <div className="w-full max-w-xl bg-red-900/20 border border-red-500/40 text-red-300 rounded-xl px-6 py-4 text-sm mb-6 flex items-start gap-3">
-            <span className="text-red-400 text-lg mt-0.5">?</span>
-            <span>{error}</span>
-          </div>
-        )}
+          <div className="grid gap-6 lg:grid-cols-[1.5fr_0.9fr] items-start">
+            <section className="bg-white rounded-3xl border border-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.06)] p-6 md:p-8">
+              <label className="block text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-3">
+                Registration ID
+              </label>
 
-        {/* Result */}
-        {result && (
-          <div className="w-full max-w-xl">
-            {result.status === "pending" && (
-              <div className="bg-amber-900/10 border border-amber-500/30 rounded-2xl p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-bold text-white">Application Status</h2>
-                  <StatusBadge status="pending" />
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
+                    🔎
+                  </span>
+                  <input
+                    type="text"
+                    value={inputId}
+                    onChange={(e) => setInputId(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && doSearch()}
+                    placeholder="ARH-REG-A7F93E1B8C245D60"
+                    className="w-full bg-slate-50 border border-slate-300 text-slate-800 text-base rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-mono placeholder:text-slate-400"
+                  />
                 </div>
-                <div className="space-y-4 text-sm text-gray-300">
-                  <div className="flex items-start gap-3 bg-gray-800/50 rounded-xl p-4">
-                    <span className="text-amber-400 text-xl">?</span>
-                    <div>
-                      <p className="font-semibold text-white mb-1">Your application is under review</p>
-                      <p className="text-gray-400 text-xs leading-relaxed">
-                        An administrator will review your registration and case details. Please check
-                        back using this page.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-800/40 rounded-lg px-4 py-3 font-mono text-xs text-gray-400 flex items-center justify-between">
-                    <span>Registration ID</span>
-                    <span className="text-white">{result.registrationId}</span>
-                  </div>
-                </div>
+
+                <button
+                  onClick={() => doSearch()}
+                  disabled={loading}
+                  className="bg-blue-700 hover:bg-blue-800 text-white font-bold px-6 py-3.5 rounded-2xl transition-all duration-200 shadow-lg shadow-blue-200 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {loading ? "Checking..." : "CHECK STATUS"}
+                </button>
               </div>
-            )}
 
-            {result.status === "approved" && (
-              <div className="bg-green-900/10 border border-green-500/30 rounded-2xl p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-bold text-white">Application Status</h2>
-                  <StatusBadge status="approved" />
-                </div>
-                <div className="space-y-4 text-sm text-gray-300">
-                  <div className="flex items-start gap-3 bg-gray-800/50 rounded-xl p-4">
-                    <span className="text-green-400 text-xl">?</span>
-                    <div>
-                      <p className="font-semibold text-white mb-1">
-                        Your application has been approved
-                      </p>
-                      <p className="text-gray-400 text-xs leading-relaxed">
-                        A Case ID has been assigned. You can now log in to the Victim Portal.
-                      </p>
-                    </div>
-                  </div>
-                  {result.caseId && (
-                    <div className="bg-gray-800/40 rounded-lg px-4 py-3 flex items-center justify-between">
-                      <span className="text-xs text-gray-400">Case ID</span>
-                      <span className="font-mono text-green-300 font-bold text-sm">{result.caseId}</span>
-                    </div>
-                  )}
-                  {result.approvedAt && (
-                    <div className="bg-gray-800/40 rounded-lg px-4 py-3 flex items-center justify-between">
-                      <span className="text-xs text-gray-400">Approved On</span>
-                      <span className="text-xs text-gray-300">{formatDate(result.approvedAt)}</span>
-                    </div>
-                  )}
-                  <Link
-                    to="/login"
-                    className="block w-full text-center bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-colors mt-2"
-                  >
-                    GO TO VICTIM LOGIN ?
-                  </Link>
-                </div>
-              </div>
-            )}
+              <p className="mt-3 text-sm text-slate-500">
+                Example: <span className="font-mono text-slate-700">ARH-REG-A7F93E1B8C245D60</span>
+              </p>
 
-            {result.status === "rejected" && (
-              <div className="bg-red-900/10 border border-red-500/30 rounded-2xl p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-bold text-white">Application Status</h2>
-                  <StatusBadge status="rejected" />
+              {error && (
+                <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm flex items-start gap-3">
+                  <span className="text-base">⚠️</span>
+                  <span>{error}</span>
                 </div>
-                <div className="space-y-4 text-sm text-gray-300">
-                  <div className="flex items-start gap-3 bg-gray-800/50 rounded-xl p-4">
-                    <span className="text-red-400 text-xl">?</span>
-                    <div>
-                      <p className="font-semibold text-white mb-1">
-                        Your application was not approved
-                      </p>
-                      <p className="text-gray-400 text-xs leading-relaxed">
-                        We regret to inform you that your registration was not approved. The reason
-                        provided by the administrator is shown below.
-                      </p>
-                    </div>
-                  </div>
-                  {result.rejectionReason && (
-                    <div className="bg-red-900/20 border border-red-500/20 rounded-lg px-4 py-3">
-                      <p className="text-xs text-red-400 font-semibold mb-1 uppercase tracking-wider">
-                        Reason
-                      </p>
-                      <p className="text-sm text-gray-300">{result.rejectionReason}</p>
+              )}
+
+              {result && (
+                <div className="mt-6">
+                  {result.status === "pending" && (
+                    <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
+                      <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
+                        <h2 className="text-xl font-bold text-slate-900">Application Status</h2>
+                        <StatusBadge status="pending" />
+                      </div>
+
+                      <div className="bg-white/70 border border-amber-100 rounded-2xl p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl">⏳</div>
+                          <div>
+                            <p className="font-semibold text-slate-900 mb-1">Your application is under review</p>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                              A support officer will review your registration details and update the status here.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm flex items-center justify-between gap-3">
+                        <span className="text-slate-500">Registration ID</span>
+                        <span className="font-mono text-slate-800 font-semibold">{result.registrationId}</span>
+                      </div>
                     </div>
                   )}
-                  {result.reviewedAt && (
-                    <div className="bg-gray-800/40 rounded-lg px-4 py-3 flex items-center justify-between">
-                      <span className="text-xs text-gray-400">Reviewed On</span>
-                      <span className="text-xs text-gray-300">{formatDate(result.reviewedAt)}</span>
+
+                  {result.status === "approved" && (
+                    <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
+                      <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
+                        <h2 className="text-xl font-bold text-slate-900">Application Status</h2>
+                        <StatusBadge status="approved" />
+                      </div>
+
+                      <div className="bg-white/70 border border-emerald-100 rounded-2xl p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl">✅</div>
+                          <div>
+                            <p className="font-semibold text-slate-900 mb-1">Your application has been approved</p>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                              A Case ID has been assigned and your access is ready for login.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {result.caseId && (
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm flex items-center justify-between gap-3">
+                          <span className="text-slate-500">Case ID</span>
+                          <span className="font-mono text-emerald-700 font-bold">{result.caseId}</span>
+                        </div>
+                      )}
+
+                      {result.approvedAt && (
+                        <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm flex items-center justify-between gap-3">
+                          <span className="text-slate-500">Approved On</span>
+                          <span className="text-slate-700">{formatDate(result.approvedAt)}</span>
+                        </div>
+                      )}
+
+                      <Link
+                        to="/login"
+                        className="mt-5 block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-2xl transition-colors"
+                      >
+                        GO TO LOGIN
+                      </Link>
                     </div>
                   )}
-                  {(result.supportContact?.name || result.supportContact?.phone || result.supportContact?.email) && (
-                    <div className="bg-gray-800/40 rounded-lg px-4 py-3 text-xs text-gray-300">
-                      <p className="text-red-400 font-semibold mb-1 uppercase tracking-wider">Support Contact</p>
-                      {result.supportContact.name && <p>{result.supportContact.name}</p>}
-                      {result.supportContact.phone && <p>{result.supportContact.phone}</p>}
-                      {result.supportContact.email && <p>{result.supportContact.email}</p>}
+
+                  {result.status === "rejected" && (
+                    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6">
+                      <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
+                        <h2 className="text-xl font-bold text-slate-900">Application Status</h2>
+                        <StatusBadge status="rejected" />
+                      </div>
+
+                      <div className="bg-white/70 border border-rose-100 rounded-2xl p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl">⚠️</div>
+                          <div>
+                            <p className="font-semibold text-slate-900 mb-1">Your application was not approved</p>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                              The reviewing team has provided the following reason for the decision.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {result.rejectionReason && (
+                        <div className="mt-4 rounded-2xl border border-rose-200 bg-white px-4 py-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-600 mb-2">Reason</p>
+                          <p className="text-sm text-slate-700">{result.rejectionReason}</p>
+                        </div>
+                      )}
+
+                      {result.reviewedAt && (
+                        <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm flex items-center justify-between gap-3">
+                          <span className="text-slate-500">Reviewed On</span>
+                          <span className="text-slate-700">{formatDate(result.reviewedAt)}</span>
+                        </div>
+                      )}
+
+                      {(result.supportContact?.name || result.supportContact?.phone || result.supportContact?.email) && (
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 mb-2">Support Contact</p>
+                          {result.supportContact.name && <p>{result.supportContact.name}</p>}
+                          {result.supportContact.phone && <p>{result.supportContact.phone}</p>}
+                          {result.supportContact.email && <p>{result.supportContact.email}</p>}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+              )}
+            </section>
+
+            <aside className="space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.05)] p-6">
+                <h3 className="text-lg font-bold text-slate-900 mb-4">Need help?</h3>
+                <ul className="space-y-3 text-sm text-slate-600">
+                  <li className="flex gap-3 items-start">
+                    <span className="text-blue-700">•</span>
+                    <span>Use the exact registration ID from your confirmation message.</span>
+                  </li>
+                  <li className="flex gap-3 items-start">
+                    <span className="text-blue-700">•</span>
+                    <span>Applications are usually reviewed within a short verification window.</span>
+                  </li>
+                  <li className="flex gap-3 items-start">
+                    <span className="text-blue-700">•</span>
+                    <span>If you lost the ID, contact the welfare support helpline.</span>
+                  </li>
+                </ul>
               </div>
-            )}
+
+              <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-[0_18px_36px_rgba(15,23,42,0.18)]">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300 mb-2">Need to reapply?</p>
+                <p className="text-sm text-slate-200 leading-relaxed mb-5">
+                  Your registration ID was shown after successful submission. If you need to apply again,
+                  please start a fresh registration.
+                </p>
+                <Link
+                  to="/register/victim"
+                  className="inline-flex items-center justify-center w-full bg-white text-slate-900 font-bold py-3 rounded-2xl hover:bg-slate-100 transition-colors"
+                >
+                  Submit a new registration
+                </Link>
+              </div>
+            </aside>
           </div>
-        )}
-
-        <div className="mt-12 text-center max-w-md">
-          <p className="text-gray-600 text-xs leading-relaxed">
-            Your Registration ID was displayed on the confirmation page after submitting your
-            registration. If you have lost it, please contact the Victim Welfare helpline.
-          </p>
-          <Link
-            to="/register/victim"
-            className="inline-block mt-4 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors"
-          >
-            Submit a new registration ?
-          </Link>
         </div>
       </main>
+
       <PublicFooter />
     </div>
   );

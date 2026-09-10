@@ -1,7 +1,12 @@
 import React, { useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import './CounselorLayout.css';
 
 export default function CounselorNavbar() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
   const storedUser = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem('user') || 'null');
@@ -11,6 +16,11 @@ export default function CounselorNavbar() {
   }, []);
 
   const displayedName = storedUser?.name || 'Counselor';
+
+  const handleLogout = () => {
+    logout();
+    navigate('/counselor/login');
+  };
 
   return (
     <header className="counselor-navbar">
@@ -27,6 +37,9 @@ export default function CounselorNavbar() {
       </div>
 
       <div className="navbar-right">
+        <Link to="/" className="counselor-home-top-btn" title="Go to public home page">
+          Home
+        </Link>
         <div className="user-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor" className="profile-svg">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
@@ -36,6 +49,9 @@ export default function CounselorNavbar() {
           <span className="logged-in-text">Logged in as:</span>
           <span className="user-name">{displayedName}</span>
         </div>
+        <button type="button" className="counselor-logout-btn" onClick={handleLogout}>
+          Logout
+        </button>
       </div>
     </header>
   );

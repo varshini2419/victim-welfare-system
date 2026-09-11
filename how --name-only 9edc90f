@@ -1,0 +1,46 @@
+[33m9edc90f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Update victim welfare system
+
+ backend/src/app.js                                 |  12 [32m+[m
+ backend/src/controllers/appointmentController.js   | 107 [32m++++++++[m
+ backend/src/controllers/callStatusController.js    |  61 [32m+++++[m
+ backend/src/controllers/counselorController.js     |   1 [32m+[m
+ backend/src/controllers/dailyUpdateController.js   |  35 [32m+++[m
+ backend/src/controllers/followUpController.js      |  46 [32m++++[m
+ backend/src/controllers/notificationController.js  |  66 [32m+++++[m
+ backend/src/models/Alert.js                        |  34 [32m+++[m
+ backend/src/models/Appointment.js                  |  74 [32m++++++[m
+ backend/src/models/CallLog.js                      |  65 [32m+++++[m
+ backend/src/models/DailyUpdate.js                  |  13 [32m+[m[31m-[m
+ backend/src/models/Notification.js                 |  25 [32m+[m[31m-[m
+ backend/src/routes/callStatusRoutes.js             |   8 [32m+[m
+ backend/src/routes/counselorAppointmentRoutes.js   |  35 [32m+++[m
+ backend/src/routes/dailyUpdateRoutes.js            |  19 [32m++[m
+ backend/src/routes/followUpRoutes.js               |  24 [32m++[m
+ backend/src/routes/notificationRoutes.js           |  16 [32m++[m
+ backend/src/routes/victimAppointmentRoutes.js      |  22 [32m++[m
+ backend/src/routes/victimRoutes.js                 |   3 [32m+[m
+ backend/src/services/appointmentService.js         | 291 [32m+++++++++++++++++++++[m
+ backend/src/services/automaticCallService.js       | 150 [32m+++++++++++[m
+ backend/src/services/chatbotService.js             |  33 [32m++[m[31m-[m
+ backend/src/services/dailyUpdateService.js         |  68 [32m+++++[m
+ backend/src/services/followUpService.js            | 179 [32m+++++++++++++[m
+ backend/src/services/riskEventService.js           |  77 [32m++++++[m
+ backend/src/services/voiceService.js               |  27 [32m+[m[31m-[m
+ backend/src/validators/appointmentValidator.js     |  75 [32m++++++[m
+ backend/src/validators/dailyUpdateValidator.js     |  40 [32m+++[m
+ backend/tests/appointmentFlow.test.js              | 178 [32m+++++++++++++[m
+ backend/tests/appointmentSchema.test.js            |  13 [32m+[m
+ backend/tests/automaticCallPolicy.test.js          |  32 [32m+++[m
+ backend/tests/dailyUpdateFollowUpFlow.test.js      | 118 [32m+++++++++[m
+ backend/tests/dailyUpdateSchema.test.js            |  16 [32m++[m
+ .../src/components/counselor/CounselorSidebar.jsx  |   8 [31m-[m
+ frontend/src/components/victim/AppointmentCard.jsx |  31 [32m+++[m
+ frontend/src/components/victim/VictimSidebar.jsx   |   9 [31m-[m
+ frontend/src/pages/counselor/Appointments.jsx      |  70 [32m+++++[m
+ frontend/src/pages/counselor/FollowUps.jsx         |  77 [32m++++++[m
+ frontend/src/pages/counselor/Notifications.jsx     |  49 [32m+++[m[31m-[m
+ frontend/src/pages/counselor/Requests.jsx          |  36 [32m+++[m
+ frontend/src/pages/counselor/VictimProfile.jsx     |  11 [32m+[m
+ frontend/src/pages/victim/Appointments.jsx         |  80 [32m++++++[m
+ frontend/src/pages/victim/DailyUpdates.jsx         |  57 [32m++[m[31m--[m
+ 43 files changed, 2346 insertions(+), 45 deletions(-)

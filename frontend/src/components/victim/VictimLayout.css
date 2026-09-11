@@ -18,7 +18,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: none; /* Removed unnecessary shadows */
   z-index: 10;
-  width: 100vw;
+  width: 100%;
 }
 
 .navbar-left {

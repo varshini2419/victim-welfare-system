@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import api from '../../utils/api';
+import React from 'react';
 
 const notifications = [
   {
@@ -58,31 +57,7 @@ const typeStyles = {
 };
 
 export default function Notifications() {
-<<<<<<< HEAD
   const unreadCount = notifications.filter((n) => n.unread).length;
-=======
-  const [notifications, setNotifications] = useState([]);
-  const [error, setError] = useState('');
-
-  const loadNotifications = async () => {
-    try {
-      const response = await api.get('/counselor/notifications');
-      setNotifications(response.data.data || []);
-      setError('');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load notifications.');
-    }
-  };
-
-  useEffect(() => {
-    loadNotifications();
-  }, []);
-
-  const markRead = async (id) => {
-    await api.patch(`/counselor/notifications/${id}/read`);
-    loadNotifications();
-  };
->>>>>>> appointment-scheduling
 
   return (
     <div style={{ padding: '1.25rem', maxWidth: '1280px', margin: '0 auto' }}>
@@ -91,7 +66,6 @@ export default function Notifications() {
         <h1 style={{ margin: '0.25rem 0 0', fontSize: '2rem', fontWeight: 800, color: '#0f172a' }}>Notifications</h1>
       </header>
 
-<<<<<<< HEAD
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '1rem 1rem 0.5rem', boxShadow: '0 10px 24px rgba(15, 23, 42, 0.04)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
@@ -171,27 +145,6 @@ export default function Notifications() {
             );
           })}
         </div>
-=======
-      {error && <div style={{ color: '#991b1b', backgroundColor: '#fee2e2', padding: '1rem', borderRadius: '8px' }}>{error}</div>}
-      <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '8px', border: '1px solid #d1d5db' }}>
-        {notifications.length === 0 ? (
-          <p style={{ color: '#6b7280' }}>You have no notifications.</p>
-        ) : notifications.map((notification) => (
-          <article key={notification._id} style={{ padding: '1rem 0', borderBottom: '1px solid #e5e7eb', opacity: notification.isRead ? 0.65 : 1 }}>
-            <div style={{ fontWeight: 600, color: '#111827' }}>{notification.message}</div>
-            {notification.alertId && (
-              <div style={{ marginTop: '0.35rem', color: '#4b5563', fontSize: '0.85rem' }}>
-                Risk: {notification.alertId.riskLevel || notification.alertId.severity} · Call: {notification.callLogId?.callStatus || notification.alertId.callStatus || 'PENDING'}
-              </div>
-            )}
-            {!notification.isRead && (
-              <button type="button" onClick={() => markRead(notification._id)} style={{ marginTop: '0.5rem', padding: '0.35rem 0.65rem', cursor: 'pointer' }}>
-                Mark as read
-              </button>
-            )}
-          </article>
-        ))}
->>>>>>> appointment-scheduling
       </div>
     </div>
   );

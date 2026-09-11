@@ -179,106 +179,152 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
   console.log(`[aiService] Raw input text: "${userText}"`);
   console.log(`[aiService] User preferred language: ${language}`);
 
-  const apiKey = process.env.GROK_API_KEY;
-  const model = process.env.GROK_MODEL || 'grok-beta';
+  const aiServiceUrl = (process.env.AI_SERVICE_URL || 'http://127.0.0.1:5001').replace(/\/$/, '');
 
-  if (!apiKey) {
-    console.warn('[aiService] No GROK_API_KEY set — using smart fallback');
-    return getSmartFallback(userText, language);
-  }
-
-  const url = `https://api.x.ai/v1/chat/completions`;
-
-  // Build conversation context (last few turns for context)
-  let contextText = '';
-  if (conversationHistory.length > 0) {
-    const recentHistory = conversationHistory.slice(-6);
-    contextText = '\n\nRecent conversation context:\n' +
-      recentHistory.map(m => `${m.role === 'user' ? 'Victim' : 'AAROHAN'}: ${m.content}`).join('\n');
-  }
-
-  const userPrompt = `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`;
-
-  const requestBody = {
-    model: model,
-    messages: [
-      { role: 'system', content: AI_SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt }
-    ],
-    temperature: 0.7,
-    max_tokens: 1024,
-    response_format: { type: "text" }
-  };
-
-  console.log(`[aiService] EXACT PROMPT BEING SENT TO GROK:\n--- SYSTEM PROMPT ---\n${AI_SYSTEM_PROMPT}\n--- USER PROMPT ---\n${userPrompt}\n-------------------`);
+  // Preserve the existing Grok path as the Node-side fallback layer.
+  // This function now attempts the Flask AI service first and falls back to the existing Grok logic only if Flask is unavailable or malformed.
+  const flaskEndpoint = `${aiServiceUrl}/api/v1/chat`;
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-
-    const response = await fetch(url, {
+    const response = await fetch(flaskEndpoint, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+      headers: {
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal
+      body: JSON.stringify({
+        message: userText,
+        language,
+        conversation_history: conversationHistory,
+        context: {}
+      })
     });
-
-    clearTimeout(timeout);
 
     if (!response.ok) {
       const errBody = await response.text().catch(() => '');
-      console.error(`[aiService] GROK API EXCEPTION: ${response.status} - ${errBody}`);
-      const fallbackResponse = getSmartFallback(userText, language);
-      console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
-      return fallbackResponse;
+      console.warn(`[aiService] Flask AI service returned non-OK: ${response.status} - ${errBody}`);
+      throw new Error(`Flask AI service error: ${response.status}`);
     }
 
     const data = await response.json();
+    if (!data || typeof data.reply !== 'string') {
+      throw new Error('Flask AI service returned malformed payload');
+    }
 
-    // Extract text from Grok response
-    const rawText = data?.choices?.[0]?.message?.content;
-    if (!rawText) {
-      console.error('[aiService] GROK API EXCEPTION: Empty response choices', JSON.stringify(data));
+    const finalResponse = {
+      language_detected: data.language_detected || language,
+      sentiment: data.sentiment || { label: 'neutral', score: 0.5 },
+      emotions: Array.isArray(data.emotions) && data.emotions.length ? data.emotions : [{ label: 'neutral', score: 1.0 }],
+      distress_score: typeof data.distress_score === 'number' ? Math.min(100, Math.max(0, data.distress_score)) : 20,
+      crisis_flag: !!data.crisis_flag,
+      reply: data.reply,
+      source: data.provider || data.source || 'flask',
+      provider: data.provider || data.source || 'flask'
+    };
+
+    console.log(`[aiService] FLASK CALL SUCCESS. Reply Text:\n${finalResponse.reply}`);
+    return finalResponse;
+  } catch (flaskError) {
+    console.warn('[aiService] Flask AI service unavailable; falling back to existing Grok logic:', flaskError.message || flaskError);
+
+    const apiKey = process.env.GROK_API_KEY;
+    const model = process.env.GROK_MODEL || 'grok-beta';
+
+    if (!apiKey) {
+      console.warn('[aiService] No GROK_API_KEY set — using smart fallback');
+      return getSmartFallback(userText, language);
+    }
+
+    const url = `https://api.x.ai/v1/chat/completions`;
+
+    // Build conversation context (last few turns for context)
+    let contextText = '';
+    if (conversationHistory.length > 0) {
+      const recentHistory = conversationHistory.slice(-6);
+      contextText = '\n\nRecent conversation context:\n' +
+        recentHistory.map(m => `${m.role === 'user' ? 'Victim' : 'AAROHAN'}: ${m.content}`).join('\n');
+    }
+
+    const userPrompt = `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`;
+
+    const requestBody = {
+      model: model,
+      messages: [
+        { role: 'system', content: AI_SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 1024,
+      response_format: { type: "text" }
+    };
+
+    console.log(`[aiService] EXACT PROMPT BEING SENT TO GROK:\n--- SYSTEM PROMPT ---\n${AI_SYSTEM_PROMPT}\n--- USER PROMPT ---\n${userPrompt}\n-------------------`);
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => '');
+        console.error(`[aiService] GROK API EXCEPTION: ${response.status} - ${errBody}`);
+        const fallbackResponse = getSmartFallback(userText, language);
+        console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
+        return fallbackResponse;
+      }
+
+      const data = await response.json();
+
+      const rawText = data?.choices?.[0]?.message?.content;
+      if (!rawText) {
+        console.error('[aiService] GROK API EXCEPTION: Empty response choices', JSON.stringify(data));
+        const fallbackResponse = getSmartFallback(userText, language);
+        console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
+        return fallbackResponse;
+      }
+
+      console.log(`[aiService] GROK CALL SUCCESS. Reply Text:\n${rawText}`);
+
+      let cleanText = rawText.trim();
+      if (cleanText.startsWith('```')) {
+        cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      }
+
+      const result = JSON.parse(cleanText);
+
+      const finalResponse = {
+        language_detected: result.language_detected || language,
+        sentiment: result.sentiment || { label: 'neutral', score: 0.5 },
+        emotions: Array.isArray(result.emotions) ? result.emotions : [{ label: 'neutral', score: 1.0 }],
+        distress_score: typeof result.distress_score === 'number' ? Math.min(100, Math.max(0, result.distress_score)) : 20,
+        crisis_flag: !!result.crisis_flag,
+        reply: result.reply || getSmartFallback(userText, language).reply,
+        source: 'grok'
+      };
+
+      console.log(`[aiService] FULL RESPONSE PAYLOAD (Grok):`, JSON.stringify(finalResponse));
+      return finalResponse;
+
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('[aiService] GROK API EXCEPTION: Request timed out after 20s');
+      } else {
+        console.error('[aiService] GROK API EXCEPTION:', error.message);
+      }
       const fallbackResponse = getSmartFallback(userText, language);
       console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
       return fallbackResponse;
     }
-
-    console.log(`[aiService] GROK CALL SUCCESS. Reply Text:\n${rawText}`);
-
-    // Parse JSON — handle potential markdown code fences
-    let cleanText = rawText.trim();
-    if (cleanText.startsWith('```')) {
-      cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    }
-
-    const result = JSON.parse(cleanText);
-
-    const finalResponse = {
-      language_detected: result.language_detected || language,
-      sentiment: result.sentiment || { label: 'neutral', score: 0.5 },
-      emotions: Array.isArray(result.emotions) ? result.emotions : [{ label: 'neutral', score: 1.0 }],
-      distress_score: typeof result.distress_score === 'number' ? Math.min(100, Math.max(0, result.distress_score)) : 20,
-      crisis_flag: !!result.crisis_flag,
-      reply: result.reply || getSmartFallback(userText, language).reply,
-      source: 'grok'
-    };
-
-    console.log(`[aiService] FULL RESPONSE PAYLOAD (Grok):`, JSON.stringify(finalResponse));
-    return finalResponse;
-
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('[aiService] GROK API EXCEPTION: Request timed out after 20s');
-    } else {
-      console.error('[aiService] GROK API EXCEPTION:', error.message);
-    }
-    const fallbackResponse = getSmartFallback(userText, language);
-    console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
-    return fallbackResponse;
   }
 };
 

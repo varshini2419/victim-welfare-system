@@ -55,14 +55,6 @@ export default function AdminSidebar() {
             </div>
           </NavLink>
         </li>
-        <li>
-          <NavLink to="/admin/users" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-            <span className="nav-icon" aria-hidden="true">⚙️</span>
-            <div className="nav-text-container">
-              <span className="nav-label-primary">User Management</span>
-            </div>
-          </NavLink>
-        </li>
       </ul>
     </nav>
   );

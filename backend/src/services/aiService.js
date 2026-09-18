@@ -452,12 +452,6 @@ const getSmartFallback = (userText, language = 'en') => {
 
 const generatePatientSummary = async (messagesText) => {
   if (!messagesText) return "No sufficient data to generate summary.";
-  const prompt = `You are an expert clinical psychologist summarizing a patient's recent text messages for their counselor.
-Based on the following messages sent by the patient today, provide a concise 2-3 sentence overview of their current emotional condition and what they are feeling right now.
-Do not use clinical jargon, keep it empathetic and direct.
-
-Patient's messages:
-${messagesText}`;
 
   try {
     let url = process.env.AI_BASE_URL;
@@ -473,7 +467,10 @@ ${messagesText}`;
       },
       body: JSON.stringify({
         model: process.env.AI_MODEL || 'claude',
-        messages: [{ role: 'system', content: prompt }],
+        messages: [
+          { role: 'system', content: "You are an expert clinical psychologist summarizing a patient's recent text messages for their counselor.\nBased on the following messages sent by the patient today, provide a concise 2-3 sentence overview of what the patient is feeling and talking about. For example: \"The patient feels bored and told about his past trauma.\"\nDo not use clinical jargon, keep it conversational, empathetic and direct. Do NOT use three-level basic indication systems or structural bullet points." },
+          { role: 'user', content: `Patient's messages:\n${messagesText}` }
+        ],
         temperature: 0.3,
         max_tokens: 150
       })
@@ -483,8 +480,24 @@ ${messagesText}`;
     if (!response.ok) {
         throw new Error(`API Error: ${response.status} - ${JSON.stringify(data)}`);
     }
-    const content = data.choices[0].message.content.trim();
-    return content;
+    let content = data.choices[0].message.content;
+    if (typeof content === 'object' && content !== null) {
+      content = content.text || content.summary || content.aiSummary || JSON.stringify(content);
+    } else if (typeof content === 'string') {
+      content = content.trim();
+      if (content.startsWith('{') && content.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(content);
+          content = parsed.aiSummary || parsed.summary || parsed.patientProfile?.currentCondition || content;
+          if (typeof content === 'object') {
+            content = JSON.stringify(content);
+          }
+        } catch (e) {
+          // Keep as string
+        }
+      }
+    }
+    return typeof content === 'string' ? content : String(content);
   } catch (error) {
     console.error('Error generating patient summary:', error.message);
     return "Patient has been active today, but unable to generate a real-time summary at this moment.";

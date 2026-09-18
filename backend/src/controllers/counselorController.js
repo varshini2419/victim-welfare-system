@@ -452,7 +452,7 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
       senderType: 'victim',
       createdAt: { $gte: todayStartUTC, $lte: todayEndUTC },
     })
-      .select('metadata.distressScore metadata.emotion isFlagged createdAt text sender')
+      .select('metadata.distressScore metadata.emotion isFlagged createdAt content senderType')
       .lean();
 
     if (todayMsgs.length > 0) {
@@ -471,7 +471,7 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
       todayData.dominantEmotion = computeDominantEmotion(todayMsgs.map((m) => m.metadata?.emotion));
       todayData.crisisMessageCount = crisisCount;
 
-      const userMessagesText = todayMsgs.filter((m) => m.sender === 'user' || m.sender === 'victim').map((m) => m.text).join(' | ');
+      const userMessagesText = todayMsgs.map((m) => m.content).filter(Boolean).join(' | ');
       if (userMessagesText) {
         try {
           const { generatePatientSummary } = require('../services/aiService');

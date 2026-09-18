@@ -457,5 +457,42 @@ module.exports = {
   analyzeAndRespond,
   getKeywordCrisisFlag,
   getSafetyMessage,
-  getSmartFallback
+  getSmartFallback,
+  generatePatientSummary
+};
+
+const generatePatientSummary = async (messagesText) => {
+  if (!messagesText) return "No sufficient data to generate summary.";
+  const prompt = \You are an expert clinical psychologist summarizing a patient's recent text messages for their counselor.
+Based on the following messages sent by the patient today, provide a concise 2-3 sentence overview of their current emotional condition and what they are feeling right now.
+Do not use clinical jargon, keep it empathetic and direct.
+
+Patient's messages:
+\
+\;
+
+  try {
+    const url = getApiUrl();
+    const response = await axios.post(
+      url,
+      {
+        model: process.env.AI_MODEL || 'claude',
+        messages: [{ role: 'system', content: prompt }],
+        temperature: 0.3,
+        max_tokens: 150
+      },
+      {
+        headers: {
+          'Authorization': \Bearer \\,
+          'Content-Type': 'application/json'
+        },
+        timeout: parseInt(process.env.AI_TIMEOUT_MS) || 15000
+      }
+    );
+    const content = response.data.choices[0].message.content.trim();
+    return content;
+  } catch (error) {
+    console.error('Error generating patient summary:', error.message);
+    return "Patient has been active today, but unable to generate a real-time summary at this moment.";
+  }
 };

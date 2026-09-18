@@ -442,6 +442,19 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
       todayData.dominantEmotion = computeDominantEmotion(todayMsgs.map((m) => m.metadata?.emotion));
       todayData.crisisMessageCount = crisisCount;
 
+      const userMessagesText = todayMsgs.filter((m) => m.sender === 'user' || m.sender === 'victim').map((m) => m.text).join(' | ');
+      if (userMessagesText) {
+        try {
+          const { generatePatientSummary } = require('../services/aiService');
+          todayData.realtimeSummary = await generatePatientSummary(userMessagesText);
+        } catch (err) {
+          console.error("Error generating realtime summary:", err);
+          todayData.realtimeSummary = "Summary not available.";
+        }
+      } else {
+        todayData.realtimeSummary = "No interactions today.";
+      }
+
       // Time-of-day grouping (IST hours: morning 5-11, afternoon 12-17, evening 18-23, night 0-4)
       const buckets = { morning: [], afternoon: [], evening: [], night: [] };
       todayMsgs.forEach((m) => {
@@ -814,6 +827,48 @@ const getFollowUps = asyncHandler(async (req, res) => {
     success: true,
     count: followUpList.length,
     data: followUpList,
+  });
+});
+
+
+// @desc    Get victim chat history
+// @route   GET /api/v1/counselor/victims/:id/chats
+// @access  Private/Counselor
+const getVictimChats = asyncHandler(async (req, res) => {
+  const authenticatedUserId = req.user?.userId || req.user?.id || req.user?._id;
+  const victimId = req.params.id;
+
+  if (!isMongoObjectIdString(victimId)) {
+    res.status(404);
+    throw new Error('Victim not found.');
+  }
+
+  const { authorized } = await verifyCounselorVictimAccess(authenticatedUserId, victimId);
+  if (!authorized) {
+    res.status(403);
+    throw new Error('Forbidden: This victim is not assigned to your counselor profile.');
+  }
+
+  const sessions = await ChatSession.find({ victimId }).sort({ createdAt: -1 });
+  const sessionIds = sessions.map(s => s._id);
+
+  const messages = await ChatMessage.find({ sessionId: { $in: sessionIds } })
+    .sort({ createdAt: 1 })
+    .lean();
+
+  const chats = sessions.map(session => {
+    return {
+      _id: session._id,
+      createdAt: session.createdAt,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      messages: messages.filter(m => m.sessionId.toString() === session._id.toString())
+    };
+  });
+
+  res.json({
+    success: true,
+    data: chats
   });
 });
 

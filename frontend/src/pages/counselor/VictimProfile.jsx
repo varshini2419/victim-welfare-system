@@ -107,110 +107,35 @@ function RiskLevelCard({ status }) {
   );
 }
 
-function TodayEmotionCard({ today }) {
+
+function RealtimeSummaryCard({ today }) {
   const hasData = today && today.interactionCount > 0;
   return (
-    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1.25rem' }}>
-      <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        Today&apos;s Emotion
+    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+      <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Real-Time Status Summary
       </h3>
       {hasData ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#0f172a' }}>
-            {EMOTION_ICONS[today.dominantEmotion] || display(today.dominantEmotion)}
-          </div>
-          {today.avgDistressScore != null && (
-            <div style={{ fontSize: '0.85rem', color: '#374151' }}>
-              Avg Distress: <strong style={{ color: '#ef4444' }}>{today.avgDistressScore}/100</strong>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+          <p style={{ fontSize: '0.95rem', color: '#14532d', margin: 0, lineHeight: 1.5, flex: 1 }}>
+            {today.realtimeSummary || "Summary generating..."}
+          </p>
+          {(today.avgDistressScore != null || today.dominantEmotion) && (
+            <div style={{ marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid #bbf7d0', display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#166534' }}>
+              <span>Emotion: <strong>{EMOTION_ICONS[today.dominantEmotion] || today.dominantEmotion}</strong></span>
+              <span>Avg Distress: <strong>{today.avgDistressScore}/100</strong></span>
             </div>
-          )}
-          {today.lastInteractionAt && (
-            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
-              Last interaction: {fmtTime(today.lastInteractionAt)}
-            </div>
-          )}
-          {today.selfReportedFeeling ? (
-            <div style={{ marginTop: '0.25rem', padding: '0.4rem 0.6rem', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '0.82rem' }}>
-              <span style={{ color: '#64748b' }}>Self-report: </span>
-              <strong style={{ color: FEELING_COLOR[today.selfReportedFeeling] || '#374151' }}>
-                {FEELING_ICONS[today.selfReportedFeeling] || today.selfReportedFeeling}
-              </strong>
-              {today.selfReportedAt && (
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>
-                  Submitted: {fmtTime(today.selfReportedAt)}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>No self-report today</div>
           )}
         </div>
       ) : (
-        <div>
-          <div style={{ color: '#64748b', fontSize: '0.9rem', fontStyle: 'italic' }}>
-            No chatbot analysis available today
-          </div>
-          {today?.selfReportedFeeling && (
-            <div style={{ marginTop: '0.75rem', padding: '0.4rem 0.6rem', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '0.82rem' }}>
-              <span style={{ color: '#64748b' }}>Self-report: </span>
-              <strong style={{ color: FEELING_COLOR[today.selfReportedFeeling] || '#374151' }}>
-                {FEELING_ICONS[today.selfReportedFeeling] || today.selfReportedFeeling}
-              </strong>
-            </div>
-          )}
+        <div style={{ color: '#64748b', fontSize: '0.9rem', fontStyle: 'italic', flex: 1 }}>
+          No interactions today to summarize.
         </div>
       )}
     </div>
   );
 }
 
-function TimeOfDayWidget({ timeOfDay }) {
-  const periods = [
-    { key: 'morning', label: 'Morning', icon: '🌅', range: '5:00 – 11:59' },
-    { key: 'afternoon', label: 'Afternoon', icon: '☀️', range: '12:00 – 17:59' },
-    { key: 'evening', label: 'Evening', icon: '🌆', range: '18:00 – 23:59' },
-    { key: 'night', label: 'Night', icon: '🌙', range: '00:00 – 04:59' },
-  ];
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.85rem' }}>
-      {periods.map(({ key, label, icon, range }) => {
-        const data = timeOfDay?.[key];
-        const bs = data?.avgDistressScore != null ? (BAND_STYLES[
-          data.avgDistressScore >= 75 ? 'Severe' : data.avgDistressScore >= 50 ? 'High' : data.avgDistressScore >= 25 ? 'Moderate' : 'Low'
-        ] || BAND_STYLES.Low) : null;
-
-        return (
-          <div key={key} style={{
-            background: data ? (bs?.bg || '#f8fafc') : '#f8fafc',
-            border: `1px solid ${data ? (bs?.border || '#e2e8f0') : '#e2e8f0'}`,
-            borderRadius: 8, padding: '1rem',
-          }}>
-            <div style={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem', marginBottom: '0.25rem' }}>
-              {icon} {label}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>{range}</div>
-            {data ? (
-              <>
-                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: bs?.text || '#374151' }}>
-                  {data.avgDistressScore != null ? `${data.avgDistressScore}/100` : 'N/A'}
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: 2 }}>
-                  {EMOTION_ICONS[data.dominantEmotion] || data.dominantEmotion || 'N/A'}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
-                  {data.count} interaction{data.count !== 1 ? 's' : ''}
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8', fontStyle: 'italic' }}>No activity</div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function TodayActivityCard({ today }) {
   return (
@@ -323,6 +248,91 @@ function EmotionBreakdownBars({ breakdown }) {
 }
 
 // ── Main Dashboard ────────────────────────────────────────────
+
+// ─── Chat History Component ─────────────────────────────────────
+function ChatHistory({ victimId }) {
+  const [chats, setChats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [expandedSession, setExpandedSession] = useState(null);
+
+  useEffect(() => {
+    async function fetchChats() {
+      if (!victimId) return;
+      try {
+        const res = await api.get(`/counselor/victims/${victimId}/chats`);
+        setChats(res.data.data);
+      } catch (err) {
+        console.error('Error fetching chats:', err);
+        setError('Failed to load chat history.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchChats();
+  }, [victimId]);
+
+  if (loading) return <div style={{ fontSize: '0.9rem', color: '#64748b' }}>Loading chat history...</div>;
+  if (error) return <div style={{ color: '#ef4444', fontSize: '0.9rem' }}>{error}</div>;
+  if (chats.length === 0) return <div style={{ color: '#64748b', fontSize: '0.9rem', fontStyle: 'italic' }}>No chat sessions found.</div>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {chats.map((session, index) => (
+        <div key={session._id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff' }}>
+          <div
+            onClick={() => setExpandedSession(expandedSession === session._id ? null : session._id)}
+            style={{ padding: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', borderTopLeftRadius: 8, borderTopRightRadius: 8 }}
+          >
+            <div>
+              <span style={{ fontWeight: 600, color: '#334155' }}>Session {index + 1}</span>
+              <span style={{ marginLeft: 10, fontSize: '0.85rem', color: '#64748b' }}>
+                {new Date(session.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium' })} {' '}
+                {new Date(session.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', timeStyle: 'short' })}
+              </span>
+            </div>
+            <span style={{ color: '#94a3b8' }}>
+              {expandedSession === session._id ? '▲' : '▼'}
+            </span>
+          </div>
+
+          {expandedSession === session._id && (
+            <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 400, overflowY: 'auto' }}>
+              {session.messages.length > 0 ? (
+                session.messages.map(msg => {
+                  const isUser = msg.sender === 'user' || msg.sender === 'victim';
+                  return (
+                    <div key={msg._id} style={{
+                      alignSelf: isUser ? 'flex-end' : 'flex-start',
+                      background: isUser ? '#dbeafe' : '#f1f5f9',
+                      color: isUser ? '#1e40af' : '#334155',
+                      padding: '8px 12px',
+                      borderRadius: 16,
+                      maxWidth: '80%',
+                      borderBottomRightRadius: isUser ? 0 : 16,
+                      borderBottomLeftRadius: isUser ? 16 : 0,
+                      fontSize: '0.9rem'
+                    }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.75rem', marginBottom: '2px', opacity: 0.7 }}>
+                        {isUser ? 'Patient' : 'Aarohan AI'}
+                      </div>
+                      <div>{msg.text}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>No messages recorded in this session.</div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── End Chat History Component ─────────────────────────────────
+
 export default function VictimProfile() {
   const { id } = useParams();
   const [dashData, setDashData] = useState(null);
@@ -474,7 +484,7 @@ export default function VictimProfile() {
         <RiskLevelCard status={currentStatus} />
 
         {/* Today's Emotion */}
-        <TodayEmotionCard today={today} />
+        <RealtimeSummaryCard today={today} />
       </div>
 
       {/* ── ROW 2: Time of Day ─────────────────────────────────── */}
@@ -608,11 +618,21 @@ export default function VictimProfile() {
         </div>
       </div>
 
+      
+      {/* ── Chat History ────────────────────────────────────────── */}
+      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1.25rem', marginBottom: '1rem' }}>
+        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#334155' }}>
+          💬 Patient Chat Logs
+        </h3>
+        <ChatHistory victimId={id} />
+      </div>
+
       {/* ── FOOTER: Disclaimer ─────────────────────────────────── */}
+
       <div style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b', marginBottom: '0.5rem' }}>
         <strong>Note:</strong> All metrics shown are AI-derived monitoring indicators based on chatbot interactions and self-reports.
         They are not clinical diagnoses. Counselor intervention should be based on professional judgment.
-        Raw chatbot conversation content is not displayed in this dashboard.
+        Chatbot conversation content is shown above for clinical review.
       </div>
     </div>
   );

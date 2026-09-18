@@ -22,6 +22,7 @@ router.get('/profile', getMyProfile);
 router.get('/victims', getMyVictims);
 router.get('/victims/:id', getVictimProfileById);
 router.get('/victims/:id/dashboard', getVictimMentalHealthDashboard);
+router.get('/victims/:id/chats', getVictimChats);
 router.get('/follow-ups', getFollowUps);
 router.get('/assigned-cases', getAssignedCases);
 router.get('/assigned-cases/:id', getAssignedCaseById);

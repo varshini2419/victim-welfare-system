@@ -204,6 +204,15 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
       // Default to OpenAI if no custom URL or Grok key provided
       url = 'https://api.openai.com/v1/chat/completions';
     }
+  } else {
+    url = url.trim();
+    if (!url.endsWith('/chat/completions')) {
+      if (url.endsWith('/')) {
+        url = url + 'chat/completions';
+      } else {
+        url = url + '/chat/completions';
+      }
+    }
   }
 
   // Build conversation context
@@ -262,6 +271,13 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
       cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     }
 
+    // Sometimes LLMs return extra text before or after the JSON
+    const firstBrace = cleanText.indexOf('{');
+    const lastBrace = cleanText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+    }
+
     try {
       const result = JSON.parse(cleanText);
       const finalResponse = {
@@ -271,12 +287,13 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
         distress_score: typeof result.distress_score === 'number' ? Math.min(100, Math.max(0, result.distress_score)) : 20,
         crisis_flag: !!result.crisis_flag,
         reply: result.reply || getSmartFallback(userText, language).reply,
-        source: provider
+        source: 'api'
       };
       console.log(`[aiService] API CALL SUCCESS. Reply Text:\n${finalResponse.reply}`);
       return finalResponse;
     } catch (parseErr) {
       console.error('[aiService] Failed to parse API response as JSON:', rawText);
+      console.error('[aiService] JSON Parse Error:', parseErr.message);
       return getSmartFallback(userText, language);
     }
   } catch (error) {

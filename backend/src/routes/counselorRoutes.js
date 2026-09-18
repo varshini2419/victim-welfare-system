@@ -12,6 +12,7 @@ const {
   createAppointment,
   updateAppointmentStatus,
   getFollowUps,
+  getVictimChats,
 } = require('../controllers/counselorController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 

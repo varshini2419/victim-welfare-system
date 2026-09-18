@@ -423,7 +423,7 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
       senderType: 'victim',
       createdAt: { $gte: todayStartUTC, $lte: todayEndUTC },
     })
-      .select('metadata.distressScore metadata.emotion isFlagged createdAt')
+      .select('metadata.distressScore metadata.emotion isFlagged createdAt text sender')
       .lean();
 
     if (todayMsgs.length > 0) {
@@ -886,4 +886,5 @@ module.exports = {
   createAppointment,
   updateAppointmentStatus,
   getFollowUps,
+  getVictimChats,
 };

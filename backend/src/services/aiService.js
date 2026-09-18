@@ -179,27 +179,34 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
   console.log(`[aiService] Raw input text: "${userText}"`);
   console.log(`[aiService] User preferred language: ${language}`);
 
-  const provider = process.env.AI_PROVIDER || 'openai';
-  let apiKey = process.env.AI_PROVIDER_API_KEY;
-  if (!apiKey || apiKey === 'your_api_key_here') {
-    apiKey = process.env.GROK_API_KEY;
-  }
-  const modelName = process.env.AI_MODEL_NAME || process.env.GROK_MODEL || 'gpt-4o-mini';
+  // Flexible override order to allow completely Custom OpenAI-Compatible APIs
+  let apiKey = process.env.AI_API_KEY || process.env.AI_PROVIDER_API_KEY || process.env.GROK_API_KEY;
 
-  if (!apiKey) {
-    console.warn('[aiService] No AI_PROVIDER_API_KEY or GROK_API_KEY set — using smart fallback');
+  if (apiKey === 'your_api_key_here') {
+    apiKey = process.env.GROK_API_KEY; // Fallback for outdated .env
+  }
+
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('[aiService] No AI_API_KEY set — using smart fallback');
     return getSmartFallback(userText, language);
   }
 
-  // Common OpenAI-compatible endpoint (OpenAI, Grok, OpenRouter)
-  let url = 'https://api.openai.com/v1/chat/completions';
-  
-  if (provider.toLowerCase() === 'grok' || apiKey === process.env.GROK_API_KEY) {
-    url = 'https://api.x.ai/v1/chat/completions';
-  } else if (process.env.AI_SERVICE_URL && !process.env.AI_SERVICE_URL.includes("127.0.0.1")) {
-    url = process.env.AI_SERVICE_URL;
+  let modelName = process.env.AI_MODEL || process.env.AI_MODEL_NAME || process.env.GROK_MODEL || 'gpt-4o-mini';
+
+  // Generic OpenAI-compatible endpoint. Perfect for LMStudio, OpenRouter, TogetherAI, custom local models, Grok, or OpenAI.
+  let url = process.env.AI_BASE_URL || process.env.AI_SERVICE_URL;
+
+  // Auto-fill fallback URLs ONLY if AI_BASE_URL isn't explicitly defined in .env
+  if (!url) {
+    if (modelName.toLowerCase().includes('grok') || (apiKey && apiKey.startsWith('xai-'))) {
+      url = 'https://api.x.ai/v1/chat/completions';
+    } else {
+      // Default to OpenAI if no custom URL or Grok key provided
+      url = 'https://api.openai.com/v1/chat/completions';
+    }
   }
 
+  // Build conversation context
   let contextText = '';
   if (conversationHistory.length > 0) {
     const recentHistory = conversationHistory.slice(-6);
@@ -216,11 +223,9 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
       { role: 'user', content: userPrompt }
     ],
     temperature: 0.7,
-    max_tokens: 1024
+    max_tokens: 1024,
+    response_format: { type: "json_object" }
   };
-
-  // Only grok and openai support json_object in this exact manner, but standardizing it.
-  requestBody.response_format = { type: "json_object" };
 
   try {
     const controller = new AbortController();
@@ -235,7 +240,7 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
       body: JSON.stringify(requestBody),
       signal: controller.signal
     });
-    
+
     clearTimeout(timeout);
 
     if (!response.ok) {
@@ -246,15 +251,15 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
 
     const data = await response.json();
     const rawText = data?.choices?.[0]?.message?.content;
-    
+
     if (!rawText) {
       console.error('[aiService] API EXCEPTION: Empty response choices', JSON.stringify(data));
       return getSmartFallback(userText, language);
     }
 
     let cleanText = rawText.trim();
-    if (cleanText.startsWith('\`\`\`')) {
-      cleanText = cleanText.replace(/^\`\`\`(?:json)?\s*/i, '').replace(/\s*\`\`\`$/, '');
+    if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     }
 
     try {

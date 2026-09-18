@@ -17,13 +17,19 @@ This is the backend service for the AAROHAN Victim Welfare System.
 2. **Environment Variables:**
    Create a `.env` file in the `backend` directory based on `.env.example`:
    ```env
+   # Persistent MongoDB database; the database name is required.
    MONGO_URI=mongodb://localhost:27017/aarohan
    PORT=5000
-   JWT_SECRET=supersecretjwtkey_replace_me_in_production
+   # Use a unique, long random value; the server refuses the example placeholder.
+   JWT_SECRET=generate_a_unique_long_random_secret_here
+   # Optional prototype account provisioning; disabled by default.
+   SEED_DEMO_DATA=false
    JWT_EXPIRES_IN=1d
    CLIENT_URL=http://localhost:5173
    ```
-3. **Seed Initial Admin:**
+3. **Optional Prototype Seed:**
+   The server never falls back to disposable in-memory storage and does not seed demo accounts unless explicitly enabled. For local prototype data, set `SEED_DEMO_DATA=true` before starting the server. Keep this disabled for shared or production databases.
+
    You must create the initial administrator securely via the seed script. Do not attempt to register an admin via the public API.
    ```bash
    cd database
@@ -35,6 +41,8 @@ This is the backend service for the AAROHAN Victim Welfare System.
    cd backend
    npm run dev
    ```
+
+The API logs the connected MongoDB host and database name at startup. If MongoDB is unavailable, startup fails instead of switching to an in-memory database. `USE_MEMORY_DB=true` is reserved for `NODE_ENV=test` only and is not a persistence option.
 
 ## Privacy Boundaries
 - **Victim Chatbot:** Conversations are completely private. At this stage, neither Counselors nor Admins have automatic access to victim chatbot messages.

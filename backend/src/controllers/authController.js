@@ -360,14 +360,35 @@ const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = String(email || '').trim().toLowerCase();
 
-  const user = await User.findOne({ email: normalizedEmail });
+  let user;
+  try {
+    user = await User.findOne({ email: normalizedEmail });
+  } catch (error) {
+    console.error(`Login user lookup failed: ${error.message}`);
+    res.status(503);
+    throw new Error('Authentication service is temporarily unavailable. Please try again later.');
+  }
 
   if (!user) {
     res.status(401);
     throw new Error('Invalid email or password');
   }
 
-  const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+  if (typeof password !== 'string' || typeof user.passwordHash !== 'string' || !user.passwordHash) {
+    console.error(`Login rejected: unusable password hash for user ${user._id}`);
+    res.status(401);
+    throw new Error('Invalid email or password');
+  }
+
+  let isPasswordValid;
+  try {
+    isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+  } catch (error) {
+    console.error(`Login password comparison failed for user ${user._id}: ${error.message}`);
+    res.status(401);
+    throw new Error('Invalid email or password');
+  }
+
   if (!isPasswordValid) {
     res.status(401);
     throw new Error('Invalid email or password');
@@ -395,17 +416,32 @@ const login = asyncHandler(async (req, res) => {
   }
 
   let profileName = '';
-  if (user.role === 'victim') {
-    const victim = await Victim.findOne({ userId: user._id });
-    profileName = victim ? victim.name : '';
-  } else if (user.role === 'counselor') {
-    const counselor = await Counselor.findOne({ userId: user._id });
-    profileName = counselor ? counselor.name : '';
-  } else if (user.role === 'admin') {
-    profileName = 'Administrator';
-  } else if (user.role === 'WELFARE_OFFICER') {
-    const welfareStaff = await WelfareStaff.findOne({ userId: user._id });
-    profileName = welfareStaff ? welfareStaff.name : '';
+  try {
+    if (user.role === 'victim') {
+      const victim = await Victim.findOne({ userId: user._id });
+      profileName = victim ? victim.name : '';
+    } else if (user.role === 'counselor') {
+      const counselor = await Counselor.findOne({ userId: user._id });
+      profileName = counselor ? counselor.name : '';
+    } else if (user.role === 'admin') {
+      profileName = 'Administrator';
+    } else if (user.role === 'WELFARE_OFFICER') {
+      const welfareStaff = await WelfareStaff.findOne({ userId: user._id });
+      profileName = welfareStaff ? welfareStaff.name : '';
+    }
+  } catch (error) {
+    console.error(`Login profile lookup failed for user ${user._id}: ${error.message}`);
+    res.status(503);
+    throw new Error('Authentication service is temporarily unavailable. Please try again later.');
+  }
+
+  let token;
+  try {
+    token = generateToken(user._id, user.role, user.email);
+  } catch (error) {
+    console.error(`Login token generation failed for user ${user._id}: ${error.message}`);
+    res.status(503);
+    throw new Error('Authentication service is temporarily unavailable. Please try again later.');
   }
 
   res.json({
@@ -415,7 +451,7 @@ const login = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       name: profileName,
-      token: generateToken(user._id, user.role, user.email)
+      token
     }
   });
 });
@@ -533,7 +569,15 @@ const loginVictim = asyncHandler(async (req, res) => {
     userAgent: req.headers['user-agent']
   });
 
-  // Generate Token
+  let token;
+  try {
+    token = generateToken(user._id, user.role, user.email);
+  } catch (error) {
+    console.error(`Victim login token generation failed for user ${user._id}: ${error.message}`);
+    res.status(503);
+    throw new Error('Authentication service is temporarily unavailable. Please try again later.');
+  }
+
   res.json({
     success: true,
     data: {
@@ -541,7 +585,7 @@ const loginVictim = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       name: victim.name,
-      token: generateToken(user._id, user.role, user.email)
+      token
     }
   });
 });

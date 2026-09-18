@@ -127,77 +127,194 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  min-height: calc(100vh - 64px);
 }
 
 .admin-sidebar {
   width: 260px;
-  background-color: #ffffff;
-  border-right: 1px solid #e5e7eb;
-  padding: 1.5rem 0;
+  background: linear-gradient(180deg, #0b1728 0%, #0d1e36 55%, #081220 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   overflow-y: auto;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.02);
+  overflow-x: hidden;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+  z-index: 5;
+  flex-shrink: 0;
 }
 
-.sidebar-heading {
-  font-size: 1.1rem;
+/* Sidebar Header Branding matching Image 1 */
+.admin-sidebar-header {
+  padding: 1.4rem 1.1rem 1.1rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 0.75rem;
+}
+
+.admin-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-sidebar-emblem {
+  width: 36px;
+  height: 44px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0.95;
+  flex-shrink: 0;
+}
+
+.admin-sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.22;
+}
+
+.admin-sidebar-title-main,
+.admin-sidebar-title-sub {
+  font-size: 0.92rem;
   font-weight: 700;
-  color: #111827;
-  padding: 0 1.5rem;
-  margin-bottom: 1.5rem;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  display: block;
+}
+
+.admin-sidebar-tagline {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-top: 3px;
+  display: block;
+}
+
+/* Navigation List & Floating Pill Items */
+.admin-sidebar-nav-container {
+  flex: 1;
+  padding: 0 0.75rem;
 }
 
 .admin-nav-list {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .nav-item {
   display: flex;
-  align-items: flex-start; /* Ensure icon aligns with top of text */
-  padding: 0.875rem 1.5rem;
-  color: #4b5563;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  color: #cbd5e1;
   text-decoration: none;
-  font-weight: 600;
-  transition: all 0.2s ease-in-out;
-  border-left: 4px solid transparent;
+  font-weight: 500;
+  border-radius: 10px;
+  transition: all 0.18s ease-in-out;
+  position: relative;
+  border: 1px solid transparent;
 }
 
 .nav-item:hover {
-  background-color: #f9fafb;
-  color: #111827;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  transform: translateX(2px);
 }
 
 .nav-item.active {
-  background-color: #f3f4f6;
-  color: #21215b; /* Match header */
-  border-left-color: #21215b;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
-.nav-icon {
-  font-size: 1.25rem;
-  margin-right: 1rem;
-  width: 24px;
-  text-align: center;
-  margin-top: 0.1rem; /* Adjust icon alignment slightly for the stacked text */
-}
-
-.nav-text-container {
+.nav-icon-wrap {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 0.75rem;
+  flex-shrink: 0;
+}
+
+.admin-nav-icon {
+  width: 20px;
+  height: 20px;
+  color: currentColor;
+  transition: color 0.18s ease;
 }
 
 .nav-label-primary {
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: 0.88rem;
+  line-height: 1.25;
+  flex: 1;
 }
 
-.nav-label-secondary {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: #6b7280;
-  margin-top: 0.2rem;
+/* Active Alert Dot Indicator matching Image 1 */
+.admin-nav-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Bottom Decorative Section matching Image 1 */
+.admin-sidebar-footer {
+  position: relative;
+  padding: 0.5rem 0 1.25rem 0;
+  margin-top: auto;
+  overflow: hidden;
+}
+
+.admin-sidebar-artwork-container {
+  width: 100%;
+  height: 110px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 0.25rem;
+}
+
+.admin-sidebar-artwork {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.admin-sidebar-footer-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+.footer-govt-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #94a3b8;
+  text-transform: uppercase;
+  display: block;
+}
+
+.footer-govt-subtitle {
+  font-size: 0.55rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-top: 3px;
+  display: block;
 }
 
 .admin-main-content {
@@ -237,33 +354,36 @@
   .admin-sidebar {
     width: 100%;
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1rem 0;
   }
   
-  .sidebar-heading {
+  .admin-sidebar-header {
     text-align: center;
-    margin-bottom: 1rem;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+  }
+
+  .admin-sidebar-brand {
+    justify-content: center;
   }
   
   .admin-nav-list {
     display: flex;
+    flex-direction: row;
     overflow-x: auto;
     padding: 0 1rem;
+    gap: 0.5rem;
   }
   
   .nav-item {
-    border-left: none;
-    border-bottom: 4px solid transparent;
-    padding: 0.5rem 1rem;
     white-space: nowrap;
   }
   
-  .nav-item.active {
-    border-left-color: transparent;
-    border-bottom-color: #21215b;
+  .admin-sidebar-footer {
+    display: none;
   }
-  
+
   .admin-main-content {
     padding: 1rem;
   }

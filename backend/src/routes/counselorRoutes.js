@@ -13,11 +13,21 @@ const {
   updateAppointmentStatus,
   getFollowUps,
   getVictimChats,
+  getCounselorSummary,
+  searchCounselorCaseload,
+  getCounselorNotifications,
+  acknowledgeAlert,
 } = require('../controllers/counselorController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.use(protect);
 router.use(authorize('counselor'));
+
+// ── Shell / cross-cutting ───────────────────────────────────────
+router.get('/summary', getCounselorSummary);
+router.get('/search', searchCounselorCaseload);
+router.get('/notifications', getCounselorNotifications);
+router.patch('/notifications/alerts/:id/acknowledge', acknowledgeAlert);
 
 router.get('/profile', getMyProfile);
 router.get('/victims', getMyVictims);

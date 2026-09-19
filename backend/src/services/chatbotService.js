@@ -275,5 +275,6 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
 };
 
 module.exports = {
-  processVictimMessage
+  processVictimMessage,
+  triggerCrisisEscalation
 };

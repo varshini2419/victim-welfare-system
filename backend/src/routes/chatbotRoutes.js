@@ -6,7 +6,11 @@ const {
   getSessionMessages,
   sendMessage,
   archiveSession,
-  submitCheckIn
+  submitCheckIn,
+  triggerVoiceEscalation,
+  endVoiceCall,
+  startVoiceCall,
+  logVoiceTurn
 } = require('../controllers/chatbotController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { chatLimiter } = require('../middleware/rateLimitMiddleware');
@@ -17,6 +21,10 @@ router.use(protect);
 router.use(authorize('victim'));
 
 router.post('/checkin', submitCheckIn);
+router.post('/voice-start', startVoiceCall);
+router.post('/voice-log', logVoiceTurn);
+router.post('/voice-escalation', triggerVoiceEscalation);
+router.post('/voice-end', endVoiceCall);
 
 router.post('/sessions', createSession);
 router.get('/sessions', getSessions);

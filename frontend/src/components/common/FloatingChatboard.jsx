@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import GeminiLiveVoice from './GeminiLiveVoice';
 
 const LANGUAGES = [
   { code: 'en-US', langKey: 'en', label: 'English' },
@@ -152,6 +153,7 @@ export default function FloatingChatboard() {
   const [speakingMsgId, setSpeakingMsgId] = useState(null);
   const [latestAnalysis, setLatestAnalysis] = useState(null);
   const [showDashboard, setShowDashboard] = useState(true);
+  const [showLiveVoice, setShowLiveVoice] = useState(false);
 
   const chatBottomRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -502,6 +504,20 @@ export default function FloatingChatboard() {
                 📊
               </button>
 
+              {/* Live Voice Toggle */}
+              <button
+                onClick={() => setShowLiveVoice(!showLiveVoice)}
+                style={{
+                  background: showLiveVoice ? "rgba(255,255,255,0.25)" : "none",
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  color: "#fff", borderRadius: "4px",
+                  fontSize: "0.75rem", cursor: "pointer", padding: "2px 5px",
+                  marginRight: "8px"
+                }}
+                title={showLiveVoice ? "Hide Live Voice" : "Show Live Voice"}
+              >
+                {showLiveVoice ? "📞" : "☎️"}
+              </button>
               {/* TTS Toggle */}
               <button
                 onClick={() => setAutoTts(!autoTts)}
@@ -637,6 +653,8 @@ export default function FloatingChatboard() {
             </div>
           )}
 
+          {showLiveVoice && <GeminiLiveVoice language={LANGUAGES.find(l => l.code === selectedLang)?.label} />}
+          
           {/* Footer Input Controls */}
           <div style={{ padding: '0.6rem 0.75rem', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
             <button

@@ -148,6 +148,7 @@ async function seedAllAccounts() {
         category: 'Physical Violence',
         description: 'Assistance requested for psycho-social counseling, welfare guidance, and rehabilitation.',
         status: 'assigned',
+        assignedCounselorId: counselorProfile._id,
         supportRequired: ['Counseling', 'Legal Guidance', 'Medical Support'],
         firDetails: {
           isFiled: true,
@@ -161,6 +162,7 @@ async function seedAllAccounts() {
     } else {
       victimCase.status = 'assigned';
       victimCase.victimId = victimUser._id;
+      victimCase.assignedCounselorId = counselorProfile._id;
       await victimCase.save();
     }
 

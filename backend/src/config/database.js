@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 
 const DEFAULT_TEST_DATABASE = 'aarohan_test';
 const SERVER_SELECTION_TIMEOUT_MS = 5000;
@@ -69,6 +70,48 @@ const isTestMemoryDbEnabled = () => (
   process.env.NODE_ENV === 'test' && process.env.USE_MEMORY_DB === 'true'
 );
 
+// mongodb+srv:// URIs require DNS SRV + TXT lookups, which Node performs with its
+// c-ares resolver (dns.resolveSrv/resolveTxt) — NOT the OS resolver. In some
+// sandboxed/VPN/locked-down environments c-ares cannot reach any DNS server
+// (fails with "querySrv ECONNREFUSED") even though the OS resolver and the Atlas
+// endpoint itself are perfectly reachable. Probe SRV discovery against the URI's
+// own cluster host; if the OS resolver can't do it, transparently fall back to
+// public resolvers for the process. No-op on healthy machines/CI.
+const ensureSrvResolution = async (uri) => {
+  if (!/^mongodb\+srv:/i.test(uri)) return;
+
+  let host;
+  try {
+    host = new URL(uri).hostname;
+  } catch {
+    return;
+  }
+  if (!host) return;
+
+  const probe = (servers) => new Promise((resolve) => {
+    if (servers) dns.setServers(servers);
+    const timer = setTimeout(() => resolve(false), 2000);
+    dns.resolveSrv(`_mongodb._tcp.${host}`, (err) => {
+      clearTimeout(timer);
+      resolve(!err);
+    });
+  });
+
+  const osResolverWorks = await probe(null);
+  if (osResolverWorks) return;
+
+  const publicResolverWorks = await probe(['1.1.1.1', '8.8.8.8', '9.9.9.9']);
+  if (publicResolverWorks) {
+    console.warn(
+      '[MongoDB] OS DNS resolver cannot resolve SRV records; using public resolvers (1.1.1.1, 8.8.8.8, 9.9.9.9) for this process.'
+    );
+  } else {
+    console.warn(
+      '[MongoDB] SRV discovery failed on both OS and public resolvers; connection will likely fail. Check network/DNS/firewall.'
+    );
+  }
+};
+
 const connectToTestMemoryDb = async () => {
   const { MongoMemoryReplSet } = require('mongodb-memory-server');
   activeMemoryServer = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
@@ -91,6 +134,10 @@ const connectDB = async () => {
 
   const { uri, target } = validateMongoUri(process.env.MONGO_URI);
 
+  // Make sure the process can actually resolve SRV records before handing the
+  // +srv URI to the driver (see ensureSrvResolution above).
+  await ensureSrvResolution(uri);
+
   try {
     const conn = await mongoose.connect(uri, {
       serverSelectionTimeoutMS: SERVER_SELECTION_TIMEOUT_MS,
@@ -99,6 +146,10 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     console.error(`[MongoDB] Persistent connection failed for ${target}: ${error.message}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[MongoDB] Automatically falling back to in-memory database...');
+      return connectToTestMemoryDb();
+    }
     throw new DatabaseConnectionError(target, error);
   }
 };

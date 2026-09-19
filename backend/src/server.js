@@ -10,9 +10,11 @@ const startServer = async () => {
     getJwtSecret();
     await connectDB();
 
-    if (process.env.SEED_DEMO_DATA === 'true') {
+    if (process.env.SEED_DEMO_DATA !== 'false') {
+      console.log('[Server] Initializing seeder...');
       const { seedAllAccounts } = require('./utils/seeder');
       await seedAllAccounts();
+      console.log('[Server] Seeder finished.');
     }
 
     app.listen(PORT, '0.0.0.0', () => {

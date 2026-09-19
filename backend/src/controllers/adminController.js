@@ -11,6 +11,12 @@ const WelfareStaff = require('../models/WelfareStaff');
 
 const normalizeLocation = value => String(value || '').replace(/[\u00a0\s]+/g, ' ').trim().toLowerCase();
 
+const isAuthorizedForState = (targetState, adminState) => {
+  const reqState = normalizeLocation(adminState);
+  if (!reqState || reqState === 'all') return true;
+  return normalizeLocation(targetState) === reqState;
+};
+
 // Helper function to get scoped user IDs
 const getScopedUserIds = async (role, state, districtFilter, statusFilter) => {
   const query = { role };
@@ -575,7 +581,7 @@ const getRequestById = asyncHandler(async (req, res) => {
     throw new Error('Request not found');
   }
 
-  if (request.victimId?.state && request.victimId.state !== req.user.state) {
+  if (request.victimId?.state && !isAuthorizedForState(request.victimId.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for this request');
   }
@@ -621,7 +627,7 @@ const assignCounselorToRequest = asyncHandler(async (req, res) => {
     throw new Error('Request not found');
   }
 
-  if (!request.victimId || normalizeLocation(request.victimId.state) !== normalizeLocation(req.user.state)) {
+  if (!request.victimId || !isAuthorizedForState(request.victimId.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for this request');
   }
@@ -642,7 +648,7 @@ const assignCounselorToRequest = asyncHandler(async (req, res) => {
     throw new Error('Only approved counselors can be assigned');
   }
 
-  if (normalizeLocation(counselorProfile.userId.state) !== normalizeLocation(req.user.state)) {
+  if (!isAuthorizedForState(counselorProfile.userId.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for this counselor');
   }
@@ -716,7 +722,7 @@ const verifyCounselor = asyncHandler(async (req, res) => {
   }
 
   // Security: Check State match
-  if (counselor.userId.state !== req.user.state) {
+  if (!isAuthorizedForState(counselor.userId.state, req.user.state)) {
     res.status(403);
     throw new Error('You are not authorized to verify counselors outside your state.');
   }
@@ -759,7 +765,7 @@ const assignCounselor = asyncHandler(async (req, res) => {
   }
 
   // Security check for victim state
-  if (normalizeLocation(victimUser.state) !== normalizeLocation(req.user.state)) {
+  if (!isAuthorizedForState(victimUser.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for victim');
   }
@@ -773,7 +779,7 @@ const assignCounselor = asyncHandler(async (req, res) => {
   }
 
   // Security check for counselor state
-  if (normalizeLocation(counselorUser.state) !== normalizeLocation(req.user.state)) {
+  if (!isAuthorizedForState(counselorUser.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for counselor');
   }
@@ -837,8 +843,8 @@ const getVictimDetails = asyncHandler(async (req, res) => {
     throw new Error('Victim not found');
   }
 
-  // Security check
-  if (victim.userId.state !== req.user.state) {
+  // Security check - Admin can access all if state is "All", otherwise match state, case-insensitive, space-trimmed
+  if (!isAuthorizedForState(victim.userId?.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized');
   }

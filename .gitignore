@@ -105,3 +105,6 @@ build/
 
 # Local tools
 .freebuff/
+
+# Local agent tooling state
+.claude/

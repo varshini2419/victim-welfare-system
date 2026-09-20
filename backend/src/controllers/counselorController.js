@@ -310,9 +310,38 @@ const getVictimProfileById = asyncHandler(async (req, res) => {
     throw new Error('Forbidden: This victim is not assigned to your counselor profile.');
   }
 
-  const victim = await Victim.findOne({ userId: victimId }).select('-aadhaarNumber -panNumber');
-  const userCases = await Case.find({ victimId }).sort({ createdAt: -1 });
+  const victim = await Victim.findOne({ userId: victimId })
+    .populate('userId', 'email status state district profileImage createdAt registrationId role');
+  const userCases = await Case.find({ victimId })
+    .populate('assignedCounselorId', 'name specialization phone qualification')
+    .sort({ createdAt: -1 });
   let distressAnalysis = await EmotionAnalysis.findOne({ victimId }).lean();
+
+  let maskedAadhaar = null;
+  let maskedPan = null;
+  try {
+    const { decrypt } = require('../utils/encryption');
+    if (victim && victim.aadhaarNumber) {
+      const plaintextAadhaar = decrypt(victim.aadhaarNumber);
+      if (plaintextAadhaar) {
+        maskedAadhaar = `XXXX-XXXX-${plaintextAadhaar.slice(-4)}`;
+      }
+    }
+    if (victim && victim.panNumber) {
+      const plaintextPan = decrypt(victim.panNumber);
+      if (plaintextPan) {
+        maskedPan = `${plaintextPan.slice(0, 5)}XXXX${plaintextPan.slice(-1)}`;
+      }
+    }
+  } catch (e) {
+    console.error('Error decrypting identity information for counselor view', e);
+  }
+
+  const safeVictim = victim ? victim.toObject() : { userId: victimId, name: 'Assigned Victim' };
+  if (victim) {
+    safeVictim.aadhaarNumber = maskedAadhaar;
+    safeVictim.panNumber = maskedPan;
+  }
 
   if (!distressAnalysis) {
     distressAnalysis = {
@@ -324,7 +353,7 @@ const getVictimProfileById = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    data: { profile: victim ? victim.toObject() : { userId: victimId, name: 'Assigned Victim' }, cases: userCases, distressAnalysis },
+    data: { profile: safeVictim, cases: userCases, distressAnalysis },
   });
 });
 

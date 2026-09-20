@@ -102,3 +102,6 @@ Thumbs.db
 frontend/dist
 dist/
 build/
+
+# Local tools
+.freebuff/

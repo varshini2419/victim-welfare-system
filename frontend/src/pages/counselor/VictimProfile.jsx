@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../utils/api';
 import DistressTrendChart from '../../components/charts/DistressTrendChart';
@@ -240,6 +240,93 @@ function EmotionBreakdownBars({ breakdown }) {
             <div style={{ height: 7, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{ width: `${pct}%`, height: '100%', background: COLOR_MAP[name] || '#64748b', borderRadius: 4 }} />
             </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TimeOfDayWidget({ timeOfDay }) {
+  const SLOTS = [
+    { key: 'morning', label: 'Morning', hours: '5:00 AM – 12:00 PM', icon: '🌅' },
+    { key: 'afternoon', label: 'Afternoon', hours: '12:00 PM – 6:00 PM', icon: '☀️' },
+    { key: 'evening', label: 'Evening', hours: '6:00 PM – 12:00 AM', icon: '🌆' },
+    { key: 'night', label: 'Night', hours: '12:00 AM – 5:00 AM', icon: '🌙' },
+  ];
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
+      {SLOTS.map((slot) => {
+        const item = timeOfDay ? timeOfDay[slot.key] : null;
+        const hasData = item && item.count > 0;
+        const bs = hasData && item.avgDistressScore != null
+          ? (item.avgDistressScore >= 80 ? BAND_STYLES.Severe
+            : item.avgDistressScore >= 60 ? BAND_STYLES.High
+            : item.avgDistressScore >= 30 ? BAND_STYLES.Moderate
+            : BAND_STYLES.Low)
+          : null;
+
+        return (
+          <div
+            key={slot.key}
+            style={{
+              background: hasData ? (bs ? bs.bg : '#f8fafc') : '#f8fafc',
+              border: `1px solid ${hasData ? (bs ? bs.border : '#cbd5e1') : '#e2e8f0'}`,
+              borderRadius: 8,
+              padding: '0.85rem 1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.4rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e293b' }}>
+                {slot.icon} {slot.label}
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                {slot.hours}
+              </span>
+            </div>
+
+            {hasData ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#475569' }}>Interactions</span>
+                  <strong style={{ fontSize: '0.88rem', color: '#1e293b' }}>{item.count}</strong>
+                </div>
+
+                {item.avgDistressScore != null && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 2 }}>
+                      <span style={{ color: '#475569' }}>Avg Distress</span>
+                      <strong style={{ color: bs?.text || '#1e293b' }}>{item.avgDistressScore}/100</strong>
+                    </div>
+                    <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${Math.min(100, Math.max(5, item.avgDistressScore))}%`,
+                          height: '100%',
+                          background: bs?.bar || '#22c55e',
+                          borderRadius: 3,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {item.dominantEmotion && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                    <span style={{ color: '#475569' }}>Dominant Emotion</span>
+                    <strong style={{ color: '#1e293b' }}>{EMOTION_ICONS[item.dominantEmotion] || item.dominantEmotion}</strong>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic', marginTop: '0.4rem' }}>
+                No interactions in this period
+              </div>
+            )}
           </div>
         );
       })}

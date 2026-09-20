@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import './CounselorLanding.css';
 
@@ -102,10 +102,6 @@ export default function CounselorLanding() {
 
         {/* Center Hero Content */}
         <div className="hero-main-container">
-          <div className="portal-badge">
-            <span>🛡️ SECURE CLINICAL WORKSPACE</span>
-          </div>
-
           <h1 className="hero-title-main">AAROHAN</h1>
           <h2 className="hero-subheading-main">
             Empowering Counselors with AI-Assisted Mental Health Support
@@ -124,30 +120,112 @@ export default function CounselorLanding() {
             </Link>
           </div>
 
-          {/* 4 Feature Badges (Matching Screenshot Style) */}
+          {/* 4 Feature Badges (Matching Reference Style) */}
           <div className="hero-features-grid">
+            {/* Feature 1: Mental Health Tracking & Support */}
             <div className="feature-badge-card">
-              <div className="badge-icon-wrapper">🧠</div>
-              <h3 className="badge-card-title">Mental Health Tracking &amp; Support</h3>
-              <p className="badge-card-desc">Continuous emotional sentiment tracking and early psychological distress detection.</p>
+              <div className="feature-card-main-content">
+                <div className="feature-icon-box" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="feature-card-svg">
+                    <path d="M12 3a9 9 0 0 1 9 9c0 3.87-2.45 7.17-5.9 8.44L14 22h-4l-1.1-1.56A8.99 8.99 0 0 1 3 12" />
+                    <path d="M3.5 13h3l1.5-3 2.5 6 2-4h2.5" />
+                  </svg>
+                </div>
+                <div className="feature-card-v-divider" aria-hidden="true" />
+                <div className="feature-card-text-group">
+                  <h3 className="badge-card-title">Mental Health Tracking &amp; Support</h3>
+                  <p className="badge-card-desc">Continuous emotional sentiment tracking and early psychological distress detection.</p>
+                </div>
+              </div>
+              <div className="feature-card-h-divider" aria-hidden="true" />
+              <div className="feature-card-action">
+                <a href="#capabilities" className="feature-card-view-btn">
+                  <span>View Details</span>
+                  <span className="action-arrow" aria-hidden="true">&rarr;</span>
+                </a>
+              </div>
             </div>
 
+            {/* Feature 2: Student Wellbeing Metrics */}
             <div className="feature-badge-card">
-              <div className="badge-icon-wrapper">📊</div>
-              <h3 className="badge-card-title">Student Wellbeing Metrics</h3>
-              <p className="badge-card-desc">Standardized psychological indicators, PHQ-9 &amp; GAD-7 clinical metric logs.</p>
+              <div className="feature-card-main-content">
+                <div className="feature-icon-box" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="feature-card-svg">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                    <path d="M9 11h6" />
+                    <path d="M9 15h6" />
+                    <path d="M9 19h4" />
+                  </svg>
+                </div>
+                <div className="feature-card-v-divider" aria-hidden="true" />
+                <div className="feature-card-text-group">
+                  <h3 className="badge-card-title">Student Wellbeing Metrics</h3>
+                  <p className="badge-card-desc">Standardized psychological indicators, PHQ-9 &amp; GAD-7 clinical metric logs.</p>
+                </div>
+              </div>
+              <div className="feature-card-h-divider" aria-hidden="true" />
+              <div className="feature-card-action">
+                <a href="#capabilities" className="feature-card-view-btn">
+                  <span>View Details</span>
+                  <span className="action-arrow" aria-hidden="true">&rarr;</span>
+                </a>
+              </div>
             </div>
 
+            {/* Feature 3: AI-Powered Insights */}
             <div className="feature-badge-card">
-              <div className="badge-icon-wrapper">🤖</div>
-              <h3 className="badge-card-title">AI-Powered Insights</h3>
-              <p className="badge-card-desc">Automated consultation transcripts, speech sentiment analysis, and risk triggers.</p>
+              <div className="feature-card-main-content">
+                <div className="feature-icon-box" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="feature-card-svg">
+                    <rect x="4" y="4" width="16" height="16" rx="2" />
+                    <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
+                    <path d="M9 15l1.5-5 1.5 5M9.5 13.5h2M14.5 10v5" />
+                  </svg>
+                </div>
+                <div className="feature-card-v-divider" aria-hidden="true" />
+                <div className="feature-card-text-group">
+                  <h3 className="badge-card-title">AI-Powered Insights</h3>
+                  <p className="badge-card-desc">Automated consultation transcripts, speech sentiment analysis, and risk triggers.</p>
+                </div>
+              </div>
+              <div className="feature-card-h-divider" aria-hidden="true" />
+              <div className="feature-card-action">
+                <a href="#capabilities" className="feature-card-view-btn">
+                  <span>View Details</span>
+                  <span className="action-arrow" aria-hidden="true">&rarr;</span>
+                </a>
+              </div>
             </div>
 
+            {/* Feature 4: 24/7 Helpline & Escalation */}
             <div className="feature-badge-card">
-              <div className="badge-icon-wrapper">🚨</div>
-              <h3 className="badge-card-title">24/7 Helpline &amp; Escalation</h3>
-              <p className="badge-card-desc">Rapid crisis response protocol with automated emergency triage routing.</p>
+              <div className="feature-card-main-content">
+                <div className="feature-icon-box" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="feature-card-svg">
+                    {/* Emergency Shield with Medical Cross in upper-right */}
+                    <path d="M17.5 2.5c1.4.6 2.8.8 2.8.8v3.5c0 2.8-1.6 4.4-2.8 5-1.2-.6-2.8-2.2-2.8-5V3.3s1.4-.2 2.8-.8z" />
+                    <path d="M17.5 4.8v3.2" />
+                    <path d="M15.9 6.4h3.2" />
+                    {/* Separate Telephone Handset in lower-left */}
+                    <g transform="translate(0.5, 3.2) scale(0.70)" strokeWidth="2.5">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </g>
+                  </svg>
+                </div>
+                <div className="feature-card-v-divider" aria-hidden="true" />
+                <div className="feature-card-text-group">
+                  <h3 className="badge-card-title">24/7 Helpline &amp; Escalation</h3>
+                  <p className="badge-card-desc">Rapid crisis response protocol with automated emergency triage routing.</p>
+                </div>
+              </div>
+              <div className="feature-card-h-divider" aria-hidden="true" />
+              <div className="feature-card-action">
+                <a href="#capabilities" className="feature-card-view-btn">
+                  <span>View Details</span>
+                  <span className="action-arrow" aria-hidden="true">&rarr;</span>
+                </a>
+              </div>
             </div>
           </div>
 
@@ -234,29 +312,142 @@ export default function CounselorLanding() {
         </div>
       </section>
 
-      {/* 6. EMERGENCY HELPLINES BAR */}
-      <section className="emergency-helpline-bar">
-        <div className="helpline-container">
-          <div className="helpline-left">
-            <div className="helpline-badge-icon">🆘</div>
-            <div className="helpline-text">
-              <h4>National Emergency &amp; Crisis Escalation</h4>
-              <p>Direct emergency contact channels integrated with central dispatch</p>
+      {/* 6. EMERGENCY SUPPORT & HELPLINES SECTION */}
+      <section className="emergency-support-section">
+        <div className="emergency-support-container">
+          {/* Header area */}
+          <div className="emergency-support-header">
+            <div className="emergency-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="emergency-header-svg">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+            </div>
+            <div className="emergency-header-divider-vertical" aria-hidden="true" />
+            <div className="emergency-header-text">
+              <h3 className="emergency-header-title">Emergency Support &amp; Helplines</h3>
+              <p className="emergency-header-subtitle">Direct access to national emergency and support services</p>
             </div>
           </div>
-          <div className="helpline-pills-row">
-            <a href="tel:14416" className="helpline-pill-link">
-              <span>🧠 Tele-MANAS:</span> <strong>14416</strong>
-            </a>
-            <a href="tel:112" className="helpline-pill-link">
-              <span>🚓 National Emergency:</span> <strong>112</strong>
-            </a>
-            <a href="tel:1098" className="helpline-pill-link">
-              <span>🧒 Childline:</span> <strong>1098</strong>
-            </a>
-            <a href="tel:181" className="helpline-pill-link">
-              <span>👩 Women Helpline:</span> <strong>181</strong>
-            </a>
+
+          <div className="emergency-green-divider" aria-hidden="true" />
+
+          {/* 4 Cards Grid */}
+          <div className="emergency-cards-grid">
+            {/* Card 1: Tele-MANAS */}
+            <div className="emergency-card">
+              <div className="emergency-card-top">
+                <div className="emergency-logo-wrap">
+                  <img src="/images/helplines/tele-manas.jpg" alt="Tele-MANAS Logo" className="emergency-card-logo" />
+                </div>
+                <div className="emergency-card-info">
+                  <h4 className="emergency-service-name">Tele-MANAS</h4>
+                  <p className="emergency-service-desc">National Mental Health Helpline</p>
+                </div>
+              </div>
+              <div className="emergency-card-inner-divider" aria-hidden="true" />
+              <div className="emergency-card-bottom">
+                <div className="emergency-num-block">
+                  <div className="emergency-num-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="emergency-mini-phone-icon" aria-hidden="true">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                    <span>Helpline Number</span>
+                  </div>
+                  <span className="emergency-card-number">14416</span>
+                </div>
+                <a href="tel:14416" className="emergency-contact-btn" title="Contact Tele-MANAS">
+                  <span>CONTACT</span>
+                  <span className="contact-arrow" aria-hidden="true">&rarr;</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Card 2: National Emergency */}
+            <div className="emergency-card emergency-card-112">
+              <div className="emergency-card-top">
+                <div className="emergency-logo-wrap">
+                  <img src="/images/helplines/emergency-112.jpg" alt="National Emergency Logo" className="emergency-card-logo" />
+                </div>
+                <div className="emergency-card-info">
+                  <h4 className="emergency-service-name">National Emergency</h4>
+                  <p className="emergency-service-desc">Emergency Response Services</p>
+                </div>
+              </div>
+              <div className="emergency-card-inner-divider" aria-hidden="true" />
+              <div className="emergency-card-bottom">
+                <div className="emergency-num-block">
+                  <div className="emergency-num-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="emergency-mini-phone-icon" aria-hidden="true">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                    <span>Helpline Number</span>
+                  </div>
+                  <span className="emergency-card-number">112</span>
+                </div>
+                <a href="tel:112" className="emergency-contact-btn" title="Contact National Emergency 112">
+                  <span>CONTACT</span>
+                  <span className="contact-arrow" aria-hidden="true">&rarr;</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Card 3: Childline */}
+            <div className="emergency-card">
+              <div className="emergency-card-top">
+                <div className="emergency-logo-wrap">
+                  <img src="/images/helplines/childline-1098.jpg" alt="Childline Logo" className="emergency-card-logo" />
+                </div>
+                <div className="emergency-card-info">
+                  <h4 className="emergency-service-name">Childline</h4>
+                  <p className="emergency-service-desc">Child Protection and Support Services</p>
+                </div>
+              </div>
+              <div className="emergency-card-inner-divider" aria-hidden="true" />
+              <div className="emergency-card-bottom">
+                <div className="emergency-num-block">
+                  <div className="emergency-num-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="emergency-mini-phone-icon" aria-hidden="true">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                    <span>Helpline Number</span>
+                  </div>
+                  <span className="emergency-card-number">1098</span>
+                </div>
+                <a href="tel:1098" className="emergency-contact-btn" title="Contact Childline 1098">
+                  <span>CONTACT</span>
+                  <span className="contact-arrow" aria-hidden="true">&rarr;</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Card 4: Women Helpline */}
+            <div className="emergency-card">
+              <div className="emergency-card-top">
+                <div className="emergency-logo-wrap">
+                  <img src="/images/helplines/women-helpline-181.jpg" alt="Women Helpline Logo" className="emergency-card-logo" />
+                </div>
+                <div className="emergency-card-info">
+                  <h4 className="emergency-service-name">Women Helpline</h4>
+                  <p className="emergency-service-desc">Women Support and Assistance</p>
+                </div>
+              </div>
+              <div className="emergency-card-inner-divider" aria-hidden="true" />
+              <div className="emergency-card-bottom">
+                <div className="emergency-num-block">
+                  <div className="emergency-num-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="emergency-mini-phone-icon" aria-hidden="true">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                    <span>Helpline Number</span>
+                  </div>
+                  <span className="emergency-card-number">181</span>
+                </div>
+                <a href="tel:181" className="emergency-contact-btn" title="Contact Women Helpline 181">
+                  <span>CONTACT</span>
+                  <span className="contact-arrow" aria-hidden="true">&rarr;</span>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>

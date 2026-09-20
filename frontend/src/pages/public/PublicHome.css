@@ -38,20 +38,46 @@
   letter-spacing: 0.05em;
 }
 
-.public-login-btn {
-  background-color: #f59e0b; /* Amber warning/action color */
-  color: #ffffff;
-  padding: 0.5rem 1.5rem;
-  border-radius: 4px;
-  font-weight: 600;
+.public-navbar-right {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.public-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #047857;
+  background-color: #ecfdf5;
   text-decoration: none;
-  transition: background-color 0.2s;
-  border: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #a7f3d0;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: all 0.18s ease;
   cursor: pointer;
 }
 
-.public-login-btn:hover {
-  background-color: #d97706;
+.public-nav-button:hover {
+  background-color: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
+  transform: translateY(-1px);
+  box-shadow: 0 1px 3px rgba(4, 120, 87, 0.1);
+}
+
+.public-nav-button.active {
+  background-color: #d1fae5;
+  border-color: #059669;
+  color: #065f46;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.15);
 }
 
 /* Hero Slider */

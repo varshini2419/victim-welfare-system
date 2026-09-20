@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ReferenceDot, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell,
@@ -451,6 +451,23 @@ function ChatLogs({ victimId, lastUpdated }) {
 export default function VictimProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const routeLocation = useLocation();
+  // Admins render this same page under /admin/counselors/:id/victims/:id —
+  // breadcrumbs and back targets follow the portal it is mounted in.
+  const isAdminPortal = routeLocation.pathname.startsWith('/admin');
+  // Admin mounts this page at /admin/victims/:id (primary) and at the
+  // /admin/counselors/:counselorId/victims/:id deep link — back target follows.
+  const isAdminCounselorPath = /^\/admin\/counselors\//.test(routeLocation.pathname);
+  const listBackTo = !isAdminPortal
+    ? '/counselor/victims'
+    : isAdminCounselorPath
+      ? '/admin/counselors'
+      : '/admin/victims';
+  const backLabel = !isAdminPortal
+    ? '← My Victims'
+    : isAdminCounselorPath
+      ? '← Counselor Management'
+      : '← Victims';
 
   const [dashData, setDashData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -530,6 +547,14 @@ export default function VictimProfile() {
   const hasCrisis = currentStatus?.crisisActive || crisisCount > 0;
 
   const trend = d?.dailyTrend || [];
+
+  // Two-line AI summary of what's going on right now (under Current Emotion)
+  const emotionSummary = useMemo(() => {
+    const raw = today?.realtimeSummary;
+    if (!raw || typeof raw !== 'string') return null;
+    if (/^no interactions|^summary not available|^summary generating/i.test(raw.trim())) return null;
+    return raw.trim();
+  }, [today?.realtimeSummary]);
   const riskDelta = useMemo(() => {
     if (trend.length < 2) return null;
     const prev = trend[trend.length - 2].avgDistressScore;
@@ -611,7 +636,7 @@ export default function VictimProfile() {
     return (
       <div className="vp-page">
         <div className="vp-breadcrumb">
-          <Link to="/counselor/victims">← My Victims</Link>
+          <Link to={listBackTo}>{backLabel}</Link>
         </div>
         <div className="vp-error-box">{error}</div>
       </div>
@@ -628,7 +653,7 @@ export default function VictimProfile() {
     <div className="vp-page">
       {/* ── Breadcrumb ── */}
       <div className="vp-breadcrumb">
-        <Link to="/counselor/victims">← My Victims</Link>
+        <Link to={listBackTo}>{backLabel}</Link>
         <span>›</span>
         <span className="crumb-current">{victimName}</span>
         {refreshing && <span style={{ color: '#2563eb', marginLeft: 8, fontSize: '0.72rem' }}>⟳ Refreshing…</span>}
@@ -806,6 +831,9 @@ export default function VictimProfile() {
             <span className="vp-metric-subline">
               {today?.avgDistressScore != null ? `Avg distress today: ${today.avgDistressScore}/100` : 'Awaiting interaction'}
             </span>
+            {emotionSummary && (
+              <p className="vp-emotion-summary">{emotionSummary}</p>
+            )}
           </div>
         </div>
 
@@ -841,7 +869,7 @@ export default function VictimProfile() {
               type="button"
               className="vp-btn vp-btn-outline-blue"
               style={{ padding: '7px 14px' }}
-              onClick={() => navigate(`/counselor/consultation/${id}`)}
+              onClick={() => navigate(isAdminPortal ? `/admin/victims/${id}/manage` : `/counselor/consultation/${id}`)}
             >
               Open Session <span className="arrow">→</span>
             </button>
@@ -1051,7 +1079,7 @@ export default function VictimProfile() {
           <CardHead
             icon="💬"
             title="Patient Chat Logs"
-            right={<Link to="/counselor/victims" className="vp-btn vp-btn-ghost">View All <span className="arrow">→</span></Link>}
+            right={<Link to={listBackTo} className="vp-btn vp-btn-ghost">View All <span className="arrow">→</span></Link>}
           />
           <ChatLogs victimId={id} lastUpdated={lastUpdated} />
         </div>

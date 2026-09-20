@@ -500,6 +500,20 @@
   color: var(--ink-900);
 }
 
+.vp-emotion-summary {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink-700);
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  /* No line-clamp: the two-line AI summary must render in full — clamping
+     sliced the sentences mid-word (see Current Emotion card). */
+}
+
 /* Live session */
 .vp-live-pill {
   display: inline-flex;

@@ -14,6 +14,15 @@ const DailyUpdate = require('../models/DailyUpdate');
 const Alert = require('../models/Alert');
 const Appointment = require('../models/Appointment');
 
+// ─── Realtime summary cache ──────────────────────────────────
+// The counselor dashboard polls every 60s (3s during live calls), but the AI
+// summary only needs to change when the victim sends new messages. Regenerating
+// an LLM summary on every poll added multiple seconds to each dashboard load.
+// Cache per victim per IST day; regenerate in the background when new messages
+// arrive while continuing to serve the previous summary instantly.
+const SUMMARY_CACHE = new Map(); // `${victimId}:${istDate}` -> { summary, generatedAt, lastMessageKey, regenerating }
+const SUMMARY_TTL_MS = 5 * 60 * 1000;
+
 // ─── helpers ────────────────────────────────────────────────────
 const isMongoObjectIdString = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
 
@@ -32,6 +41,12 @@ const normalizeObjectId = (value) => {
 // Verify that the requested victimId is assigned to the authenticated counselor.
 // Checks both Case.assignedCounselorId (Counselor profile _id) and Assignment.counselorId (User _id).
 const verifyCounselorVictimAccess = async (authenticatedUserId, victimId) => {
+  // Admins supervise every case: allow them through the counselor-scoped
+  // check so they can view the same dashboards as the assigned counselor.
+  const authUser = await User.findById(authenticatedUserId).select('role').lean();
+  if (authUser?.role === 'admin') {
+    return { counselor: null, authorized: true, caseMatch: null, assignmentMatch: null };
+  }
   const counselor = await Counselor.findOne({ userId: authenticatedUserId }).lean();
   const [caseMatch, assignmentMatch] = await Promise.all([
     counselor
@@ -475,15 +490,56 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
 
       const userMessagesText = todayMsgs.map((m) => m.content).filter(Boolean).join(' | ');
       if (userMessagesText) {
-        try {
-          const { generatePatientSummary } = require('../services/aiService');
-          todayData.realtimeSummary = await generatePatientSummary(userMessagesText);
-        } catch (err) {
-          console.error("Error generating realtime summary:", err);
-          todayData.realtimeSummary = "Summary not available.";
+        const istDayKey = `${victimId}:${new Date(Date.now() + IST_OFFSET_MS).toISOString().slice(0, 10)}`;
+        const lastMessageKey = String(sorted[0]._id);
+        const cached = SUMMARY_CACHE.get(istDayKey);
+        const cacheFresh = cached && (Date.now() - cached.generatedAt) < SUMMARY_TTL_MS;
+
+        const { generatePatientSummary } = require('../services/aiService');
+
+        if (cached && cached.regenerating) {
+          // Regeneration already in flight — serve the previous summary instantly
+          todayData.realtimeSummary = cached.summary;
+          todayData.summaryGeneratedAt = cached.generatedAt;
+        } else if (cached && (cacheFresh || cached.lastMessageKey === lastMessageKey)) {
+          // Nothing new worth summarizing (or cache still young): serve cache.
+          // If messages changed, refresh in the background for the next poll.
+          todayData.realtimeSummary = cached.summary;
+          todayData.summaryGeneratedAt = cached.generatedAt;
+          if (cached.lastMessageKey !== lastMessageKey) {
+            cached.regenerating = true;
+            generatePatientSummary(userMessagesText)
+              .then((summary) => {
+                SUMMARY_CACHE.set(istDayKey, { summary, generatedAt: Date.now(), lastMessageKey, regenerating: false });
+              })
+              .catch((err) => {
+                console.error('Error regenerating realtime summary:', err.message);
+                cached.regenerating = false;
+              });
+          }
+        } else {
+          // First request of the day (or cache too old): kick off generation in the
+          // background and serve instantly — the next poll picks up the result.
+          // Never block the dashboard poll on the LLM (can take 10s+).
+          SUMMARY_CACHE.set(istDayKey, {
+            summary: cached?.summary || 'Generating summary…',
+            generatedAt: cached?.generatedAt || Date.now(),
+            lastMessageKey,
+            regenerating: true,
+          });
+          todayData.realtimeSummary = cached?.summary || 'Generating summary…';
+          generatePatientSummary(userMessagesText)
+            .then((summary) => {
+              SUMMARY_CACHE.set(istDayKey, { summary, generatedAt: Date.now(), lastMessageKey, regenerating: false });
+            })
+            .catch((err) => {
+              console.error('Error generating realtime summary:', err.message);
+              // Allow the next poll to retry
+              SUMMARY_CACHE.delete(istDayKey);
+            });
         }
       } else {
-        todayData.realtimeSummary = "No interactions today.";
+        todayData.realtimeSummary = 'No interactions today.';
       }
 
       // Time-of-day grouping (IST hours: morning 5-11, afternoon 12-17, evening 18-23, night 0-4)

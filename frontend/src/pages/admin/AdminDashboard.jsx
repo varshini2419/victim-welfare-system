@@ -134,7 +134,7 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td style={{ padding: '1rem 1.5rem' }}>
-                        <Link to={`/admin/victims/${req.victimId}`} style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '500', fontSize: '0.875rem' }}>View</Link>
+                        <Link to={`/admin/victims/${req.victimId}/manage`} style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '500', fontSize: '0.875rem' }}>View</Link>
                       </td>
                     </tr>
                   ))}

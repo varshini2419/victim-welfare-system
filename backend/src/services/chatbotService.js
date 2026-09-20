@@ -46,6 +46,19 @@ const getDistressBand = (score) => {
 };
 
 /**
+ * Mirror of riskEventService.normalizeRiskLevel score bands — lets the API
+ * return the risk level instantly instead of awaiting the background
+ * risk-event write chain (Case/CallLog/Notification round-trips).
+ */
+const deriveRiskLevel = (distressScore) => {
+  const score = Number(distressScore || 0);
+  if (score >= 75) return 'CRITICAL';
+  if (score >= 50) return 'HIGH';
+  if (score >= 25) return 'MEDIUM';
+  return 'LOW';
+};
+
+/**
  * Process a victim's chat message — full pipeline:
  * 1. Keyword crisis check (instant)
  * 2. Gemini unified analysis + response
@@ -99,7 +112,8 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
   // 2. Run keyword crisis check FIRST (instant, no API needed)
   const keywordCrisis = aiService.getKeywordCrisisFlag(content);
 
-  // 3. Get conversation history for context
+  // 3. History fetch runs in parallel with nothing else needed pre-LLM; the
+  // session lookup already gated access above.
   const contextLimit = parseInt(process.env.CHAT_CONTEXT_MESSAGES) || 15;
   const previousMessages = await ChatMessage.find({ sessionId: session._id })
     .sort({ createdAt: -1 })
@@ -129,10 +143,15 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
     analysis.crisis_flag = true;
     analysis.distress_score = Math.max(analysis.distress_score, 90);
 
-    const escalation = await triggerCrisisEscalation(victimId, analysis);
-    if (escalation.escalated) {
-      console.log('[chatbotService] Crisis escalated to assigned counselor:', escalation.callSid || 'no-call-sid');
-    }
+    // Fire-and-forget: the victim must get their safety message immediately;
+    // a slow Twilio attempt must never add seconds to the chat round-trip.
+    triggerCrisisEscalation(victimId, analysis)
+      .then((escalation) => {
+        if (escalation.escalated) {
+          console.log('[chatbotService] Crisis escalated to assigned counselor:', escalation.callSid || 'no-call-sid');
+        }
+      })
+      .catch((err) => console.error('[chatbotService] Background escalation failed:', err.message));
   }
 
   const distressBand = getDistressBand(analysis.distress_score);
@@ -158,8 +177,11 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
     }
   });
 
-  // Escalation is backend-owned and gated by both normalized risk and danger signals.
-  const riskEventResult = await riskEventService.createRiskEvent({
+  // Escalation is backend-owned and gated by risk. Risk-event creation and any
+  // automatic counselor call run fully in the background — they involve ~8
+  // serial DB round-trips (and possibly Twilio) that must never delay the
+  // victim's reply. The API derives risk_level locally instead of awaiting.
+  riskEventService.createRiskEvent({
     victimId,
     sourceMessageId: userMessage._id,
     analysis: {
@@ -167,74 +189,79 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
       distress_score: analysis.distress_score,
       crisis_flag: isCrisis,
     },
-  });
+  })
+    .then(async (riskEventResult) => {
+      if (riskEventResult.eligible && riskEventResult.event) {
+        try {
+          await automaticCallService.initiateAutomaticCall({
+            victimId,
+            riskEvent: riskEventResult.event,
+          });
+        } catch (err) {
+          console.error('[chatbotService] Automatic call failed:', err.message);
+        }
+      }
+    })
+    .catch((err) => console.error('[chatbotService] Risk event creation failed:', err.message));
 
-  let automaticCall = null;
-  if (riskEventResult.eligible && riskEventResult.event) {
-    automaticCall = await automaticCallService.initiateAutomaticCall({
-      victimId,
-      riskEvent: riskEventResult.event,
-    });
-  }
+  // 7-9. EmotionAnalysis update, session update, and AI-reply save run in
+  // parallel — one round-trip of latency instead of three.
+  const emotionUpdatePromise = (async () => {
+    try {
+      let emotionDoc = await EmotionAnalysis.findOne({ victimId });
+      if (!emotionDoc) {
+        emotionDoc = new EmotionAnalysis({
+          victimId,
+          sessionId: session._id,
+          distressScore: analysis.distress_score,
+          distressBand,
+          primaryEmotion,
+          emotionsBreakdown: {
+            Anxious: 0, Sad: 0, Fearful: 0, Angry: 0,
+            Calm: 0, Hopeful: 0, Neutral: 0
+          },
+          recentLog: []
+        });
+      }
 
-  // 7. Update EmotionAnalysis record for counselor reports
-  try {
-    let emotionDoc = await EmotionAnalysis.findOne({ victimId });
-    if (!emotionDoc) {
-      emotionDoc = new EmotionAnalysis({
-        victimId,
-        sessionId: session._id,
+      // Rolling average distress score (weighted toward recent)
+      emotionDoc.distressScore = Math.round(
+        (emotionDoc.distressScore * 0.4) + (analysis.distress_score * 0.6)
+      );
+      emotionDoc.distressBand = getDistressBand(emotionDoc.distressScore);
+      emotionDoc.primaryEmotion = primaryEmotion;
+      emotionDoc.sessionId = session._id;
+
+      // Increment emotion count
+      if (emotionDoc.emotionsBreakdown[primaryEmotion] !== undefined) {
+        emotionDoc.emotionsBreakdown[primaryEmotion] += 1;
+      } else {
+        emotionDoc.emotionsBreakdown[primaryEmotion] = 1;
+      }
+
+      // Add to recent log
+      emotionDoc.recentLog.unshift({
+        message: content.substring(0, 100),
+        emotion: primaryEmotion,
         distressScore: analysis.distress_score,
-        distressBand,
-        primaryEmotion,
-        emotionsBreakdown: {
-          Anxious: 0, Sad: 0, Fearful: 0, Angry: 0,
-          Calm: 0, Hopeful: 0, Neutral: 0
-        },
-        recentLog: []
+        timestamp: new Date()
       });
+      if (emotionDoc.recentLog.length > 20) {
+        emotionDoc.recentLog = emotionDoc.recentLog.slice(0, 20);
+      }
+
+      await emotionDoc.save();
+    } catch (err) {
+      console.error('[chatbotService] EmotionAnalysis update failed:', err.message);
     }
+  })();
 
-    // Rolling average distress score (weighted toward recent)
-    emotionDoc.distressScore = Math.round(
-      (emotionDoc.distressScore * 0.4) + (analysis.distress_score * 0.6)
-    );
-    emotionDoc.distressBand = getDistressBand(emotionDoc.distressScore);
-    emotionDoc.primaryEmotion = primaryEmotion;
-    emotionDoc.sessionId = session._id;
-
-    // Increment emotion count
-    if (emotionDoc.emotionsBreakdown[primaryEmotion] !== undefined) {
-      emotionDoc.emotionsBreakdown[primaryEmotion] += 1;
-    } else {
-      emotionDoc.emotionsBreakdown[primaryEmotion] = 1;
-    }
-
-    // Add to recent log
-    emotionDoc.recentLog.unshift({
-      message: content.substring(0, 100),
-      emotion: primaryEmotion,
-      distressScore: analysis.distress_score,
-      timestamp: new Date()
-    });
-    if (emotionDoc.recentLog.length > 20) {
-      emotionDoc.recentLog = emotionDoc.recentLog.slice(0, 20);
-    }
-
-    await emotionDoc.save();
-  } catch (err) {
-    console.error('[chatbotService] EmotionAnalysis update failed:', err.message);
-  }
-
-  // 8. Update session
   session.lastMessageAt = Date.now();
   if (session.title === 'New Conversation') {
     session.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
   }
-  await session.save();
 
-  // 9. Save AI response
-  const aiMessage = await ChatMessage.create({
+  const aiMessagePromise = ChatMessage.create({
     sessionId: session._id,
     senderType: isCrisis ? 'system' : 'ai',
     content: analysis.reply,
@@ -246,7 +273,14 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
     }
   });
 
-  // 10. Return full structured result
+  // The reply is persisted alongside telemetry in parallel; once this resolves
+  // the victim gets their answer. Nothing here waits on Twilio or risk writes.
+  const [aiMessage] = await Promise.all([
+    aiMessagePromise,
+    session.save(),
+    emotionUpdatePromise,
+  ]);
+
   return {
     userMessage,
     aiMessage,
@@ -255,21 +289,18 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
       emotions: analysis.emotions,
       distress_score: analysis.distress_score,
       distress_band: distressBand,
-      risk_level: riskEventResult.riskLevel,
+      // Derived locally from the distress score (same bands as
+      // riskEventService) so the response never waits on background writes.
+      risk_level: deriveRiskLevel(analysis.distress_score),
       risk_score: analysis.risk_score ?? analysis.riskScore ?? analysis.distress_score,
       crisis_flag: isCrisis,
       language_detected: analysis.language_detected || langCode,
       primary_emotion: primaryEmotionRaw,
       primary_emotion_mapped: primaryEmotion,
       source: analysis.source,
-      escalationEligible: riskEventResult.eligible,
-      automaticCall: automaticCall ? {
-        initiated: automaticCall.initiated,
-        duplicate: automaticCall.duplicate || false,
-        dryRun: automaticCall.dryRun || false,
-        reason: automaticCall.reason || null,
-        status: automaticCall.callLog?.callStatus || null,
-      } : null,
+      // The background chain decides escalation/call outcomes after responding.
+      escalationEligible: isCrisis || analysis.distress_score >= 50,
+      automaticCall: null,
     }
   };
 };

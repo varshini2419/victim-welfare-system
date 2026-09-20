@@ -1,10 +1,13 @@
 /**
- * AI Service — Unified Gemini-based Analysis & Response
+ * AI Service — Unified Analysis & Response
  * 
- * Single Gemini API call returns: sentiment, emotions, distress_score, crisis_flag, reply
+ * Single API call returns: sentiment, emotions, distress_score, crisis_flag, reply
  * Broadened keyword crisis safety net runs independently
  * Pre-approved safety messages override LLM on any crisis detection
+ * Legal RAG: retrieved provisions are injected so replies can cite real law
  */
+
+const { retrieveLegalContext } = require('./legalKnowledge');
 
 // ─────────────────────────────────────────────────────────────
 // 1. BROADENED CRISIS KEYWORD CHECK (runs without any API)
@@ -152,22 +155,22 @@ const getSafetyMessage = (langCode = 'en') => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// 3. GEMINI API CALL — Unified analysis + response
+// 3. LLM CALL — Unified analysis + response
 // ─────────────────────────────────────────────────────────────
-const AI_SYSTEM_PROMPT = `You are AAROHAN AI, an empathetic support assistant for crime victims under the SC/ST Prevention of Atrocities Act support program.
+const AI_SYSTEM_PROMPT = `You are AAROHAN AI, a compassionate support companion for crime victims in India, grounded in Indian law.
 
-For the victim's message, you must:
+For the victim's message you must:
 1. Detect the language of the input text.
 2. Classify overall sentiment (positive / neutral / negative) with a confidence score (0-1).
 3. Identify the top emotions present (choose from: fear, sadness, anger, joy, disgust, surprise, neutral) each with an approximate probability (0-1), summing to roughly 1.0.
 4. Compute a distress_score from 0 (calm/stable) to 100 (severe crisis), weighing negative sentiment, fear/sadness/anger intensity, any expression of hopelessness, self-harm ideation, suicidal intent, or being in immediate danger very heavily.
 5. Set crisis_flag to true if there is ANY indication — direct or indirect — of self-harm, suicidal thoughts, wanting to die, or immediate physical danger. Err strongly toward flagging when uncertain; false positives are far safer than false negatives here.
-6. Generate a reply IN THE SAME LANGUAGE as the input meeting these STRICT human-touch guidelines:
-   - DO NOT USE robotic cliches like "I am here for you", "I am here to listen", "I am so sorry you are going through this", "your feelings are valid".
-   - Be conversational, natural, and concise (1-2 sentences). Respond like a compassionate human sitting next to them. If they say they are bored, ask them a gentle, curious question about what they like to do. If they share a trauma, reflect their emotion naturally without sounding clinical.
-   - Vary your responses. Do NOT repeat the same phrases.
-   - Never give medical, psychiatric, or legal advice, and never claim to be a licensed therapist.
-   - If crisis_flag is true, gently state that immediate support is being arranged and help is available right now.
+6. Generate a reply IN THE SAME LANGUAGE as the input following this STRICT structure:
+   a. FIRST, validate their feeling in one warm, natural sentence — like a person who truly gets it. FORBIDDEN cliches: "I am here for you", "I am here to listen", "I am so sorry you are going through this", "your feelings are valid".
+   b. THEN, empower them: if a law in LEGAL CONTEXT genuinely applies to their situation, tell them the law is on their side and they can act on it. Cite at most ONE provision, by name, using ONLY what LEGAL CONTEXT provides (e.g. "Article 21 of the Constitution guarantees your right to live with dignity" / "spreading lies like that is defamation, which is punishable"). NEVER invent or guess section numbers or Acts. If no legal context applies or you are unsure, skip the legal citation entirely.
+   c. END with one concrete next step (file a complaint, preserve screenshots, call a helpline, talk to your counselor) OR one gentle question. Never suggest illegal retaliation.
+   d. Keep the whole reply 2-3 short sentences, under 60 words. Vary your phrasing across turns.
+   e. If crisis_flag is true, calmly state that immediate help is being arranged right now (Emergency 112, Tele-MANAS 14416).
 
 Return ONLY valid JSON, no other text, in exactly this schema:
 {
@@ -178,6 +181,17 @@ Return ONLY valid JSON, no other text, in exactly this schema:
   "crisis_flag": false,
   "reply": "string in the detected language"
 }`;
+
+// Inject retrieved legal provisions so the model can only cite what we gave it.
+const buildSystemPrompt = (legalEntries) => {
+  if (!legalEntries || legalEntries.length === 0) {
+    return AI_SYSTEM_PROMPT;
+  }
+  const legalBlock = legalEntries
+    .map((l, i) => `[${i + 1}] ${l.title} (${l.citation}): ${l.text}`)
+    .join('\n');
+  return `${AI_SYSTEM_PROMPT}\n\nLEGAL CONTEXT (the ONLY provisions you may reference):\n${legalBlock}`;
+};
 
 const analyzeAndRespond = async (userText, conversationHistory = [], language = 'en') => {
   console.log(`\n[aiService] --- NEW MESSAGE RECEIVED ---`);
@@ -220,24 +234,31 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
     }
   }
 
-  // Build conversation context
+  // Build conversation context (short: older turns barely help and cost latency)
   let contextText = '';
   if (conversationHistory.length > 0) {
-    const recentHistory = conversationHistory.slice(-6);
+    const recentHistory = conversationHistory.slice(-4);
     contextText = '\n\nRecent conversation context:\n' +
       recentHistory.map(m => `${m.role === 'user' ? 'Victim' : 'AAROHAN'}: ${m.content}`).join('\n');
   }
 
   const userPrompt = `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`;
 
+  // Legal RAG: pull up to 2 matching provisions for this message (pure local scoring, ~0ms)
+  const legalEntries = retrieveLegalContext(
+    userText,
+    conversationHistory.slice(-2).map(m => m.content)
+  );
+
   const requestBody = {
     model: modelName,
     messages: [
-      { role: 'system', content: AI_SYSTEM_PROMPT },
+      { role: 'system', content: buildSystemPrompt(legalEntries) },
       { role: 'user', content: userPrompt }
     ],
-    temperature: 0.7,
-    max_tokens: 1024,
+    temperature: 0.6,
+    // Replies are capped at 2-3 short sentences; a larger budget only adds tail latency
+    max_tokens: 300,
     response_format: { type: "json_object" }
   };
 
@@ -468,12 +489,14 @@ const generatePatientSummary = async (messagesText) => {
       body: JSON.stringify({
         model: process.env.AI_MODEL || 'claude',
         messages: [
-          { role: 'system', content: "You are an expert clinical psychologist summarizing a patient's recent text messages for their counselor.\nBased on the following messages sent by the patient today, provide a concise 2-3 sentence overview of what the patient is feeling and talking about. For example: \"The patient feels bored and told about his past trauma.\"\nDo not use clinical jargon, keep it conversational, empathetic and direct. Do NOT use three-level basic indication systems or structural bullet points." },
+          { role: 'system', content: "You are an expert clinical psychologist summarizing a patient's recent text messages for their counselor.\nBased on the messages sent by the patient today, write EXACTLY TWO short sentences: one on what they are going through emotionally, one on what it means for their care. Plain, conversational, empathetic — no jargon, no bullet points. Example: \"Priya is being blamed at work for something she did not do and feels isolated. She needs early legal guidance and a follow-up session within the week.\"" },
           { role: 'user', content: `Patient's messages:\n${messagesText}` }
         ],
         temperature: 0.3,
-        max_tokens: 150
-      })
+        max_tokens: 120
+      }),
+      // Summary runs in the background — allow a generous window for slow proxies
+      signal: AbortSignal.timeout(20000)
     });
 
     const data = await response.json();
@@ -500,7 +523,7 @@ const generatePatientSummary = async (messagesText) => {
     return typeof content === 'string' ? content : String(content);
   } catch (error) {
     console.error('Error generating patient summary:', error.message);
-    return "Patient has been active today, but unable to generate a real-time summary at this moment.";
+    throw error;
   }
 };
 

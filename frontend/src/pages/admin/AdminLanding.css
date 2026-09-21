@@ -1,4 +1,4 @@
-﻿/* AdminLanding.css */
+/* AdminLanding.css */
 :root {
   --admin-navy: #0f172a;
   --admin-deep-blue: #1a1a47;
@@ -124,12 +124,18 @@
   flex-direction: column;
 }
 
-.admin-brand-title {
+.brand-main-title,
+.admin-brand-title,
+.admin-main-header .admin-brand-title {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #0f172a;
+  color: #0f172a !important;
   letter-spacing: 0.02em;
   margin: 0;
+  text-shadow: none !important;
+  display: block;
+  text-align: left;
+  line-height: 1.2;
 }
 
 .admin-brand-subtitle {
@@ -353,10 +359,11 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
-  padding: 1rem 0.875rem;
+  padding: 1rem 0.875rem 0.875rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  justify-content: space-between;
+  align-items: stretch;
   text-align: left;
   transition: all 0.3s ease;
   position: relative;
@@ -380,31 +387,103 @@
   box-shadow: 0 8px 20px rgba(13, 148, 136, 0.25);
 }
 
-.admin-badge-icon {
+/* Internal Layout: Icon Box | Vertical Divider | Text Group */
+.admin-feature-main-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.admin-feature-icon-box {
   width: 38px;
   height: 38px;
-  border-radius: 50%;
-  background: rgba(13, 148, 136, 0.25);
-  border: 1px solid rgba(45, 212, 191, 0.5);
+  border-radius: 8px;
+  background: rgba(13, 148, 136, 0.15);
+  border: 1.5px solid rgba(45, 212, 191, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
-  margin-bottom: 0.625rem;
+  flex-shrink: 0;
+  color: #38bdf8;
+  margin-top: 0.1rem;
+}
+
+.admin-feature-svg {
+  width: 20px;
+  height: 20px;
+  stroke: #38bdf8;
+}
+
+.admin-feature-v-divider {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  margin: 0.1rem 0.1rem 0.1rem 0;
+}
+
+.admin-feature-text-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .admin-badge-title {
-  font-size: 0.8125rem;
+  font-size: 0.84rem;
   font-weight: 700;
   color: #ffffff;
   line-height: 1.3;
-  margin-bottom: 0.25rem;
+  margin: 0 0 0.25rem;
+  letter-spacing: 0.01em;
 }
 
 .admin-badge-desc {
   font-size: 0.7rem;
   color: #94a3b8;
   line-height: 1.35;
+  margin: 0;
+}
+
+/* Horizontal Divider above View Details */
+.admin-feature-h-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0.75rem 0 0.5rem;
+  width: 100%;
+}
+
+/* Bottom Action Area */
+.admin-feature-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.admin-feature-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #2dd4bf;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.admin-feature-view-btn:hover {
+  color: #38bdf8;
+}
+
+.admin-feature-view-btn .action-arrow {
+  font-size: 0.85rem;
+  transition: transform 0.2s ease;
+}
+
+.admin-feature-view-btn:hover .action-arrow {
+  transform: translateX(3px);
 }
 
 /* Indicator Pills */
@@ -800,6 +879,271 @@
   gap: 0.75rem;
   color: #64748b;
   font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   6. EMERGENCY SUPPORT & HELPLINES SECTION (GOVERNMENT PORTAL SPEC)
+   ========================================================================== */
+.emergency-support-section {
+  background-color: #061c38;
+  color: #ffffff;
+  padding: 2.25rem 2rem 2.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.emergency-support-container {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+/* Header Area */
+.emergency-support-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.emergency-icon-box {
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid #10b981;
+  background-color: rgba(16, 185, 129, 0.08);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.emergency-header-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.emergency-header-divider-vertical {
+  width: 2px;
+  height: 34px;
+  background-color: #10b981;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.emergency-header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.emergency-header-title {
+  margin: 0;
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.emergency-header-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.emergency-green-divider {
+  height: 1px;
+  background: rgba(16, 185, 129, 0.35);
+  margin: 1.15rem 0 1.35rem;
+  width: 100%;
+}
+
+/* 4 Compact Cards Grid */
+.emergency-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.15rem;
+}
+
+.emergency-card {
+  background-color: #0b2545;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 1rem 1.05rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+
+.emergency-card:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+  background-color: #0d2c52;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.emergency-card.emergency-card-112 {
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.emergency-card.emergency-card-112:hover {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Card Top Area */
+.emergency-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.emergency-logo-wrap {
+  width: 48px;
+  height: 48px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.emergency-card-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.emergency-card-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.emergency-service-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emergency-service-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* Inner Divider */
+.emergency-card-inner-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  margin: 0.75rem 0;
+  width: 100%;
+}
+
+/* Card Bottom Area */
+.emergency-card-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.emergency-num-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.emergency-num-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.emergency-mini-phone-icon {
+  width: 12px;
+  height: 12px;
+  stroke: #94a3b8;
+  flex-shrink: 0;
+}
+
+.emergency-card-number {
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  margin-top: 0.1rem;
+  line-height: 1.1;
+}
+
+.emergency-card-112 .emergency-card-number {
+  color: #fca5a5;
+}
+
+/* Contact Button */
+.emergency-contact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.emergency-contact-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #ffffff;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.contact-arrow {
+  font-size: 0.82rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.emergency-contact-btn:hover .contact-arrow {
+  transform: translateX(2px);
+}
+
+@media (max-width: 1024px) {
+  .emergency-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .emergency-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .emergency-support-section {
+    padding: 1.5rem 1rem;
+  }
 }
 
 /* ==========================================================================

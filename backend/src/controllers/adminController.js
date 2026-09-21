@@ -11,6 +11,12 @@ const WelfareStaff = require('../models/WelfareStaff');
 
 const normalizeLocation = value => String(value || '').replace(/[\u00a0\s]+/g, ' ').trim().toLowerCase();
 
+const isAuthorizedForState = (targetState, adminState) => {
+  const reqState = normalizeLocation(adminState);
+  if (!reqState || reqState === 'all') return true;
+  return normalizeLocation(targetState) === reqState;
+};
+
 // Helper function to get scoped user IDs
 const getScopedUserIds = async (role, state, districtFilter, statusFilter) => {
   const query = { role };
@@ -236,6 +242,119 @@ const getCounselorById = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: formatCounselor(counselor, counselor.userId)
+  });
+});
+
+// @desc    Get victims connected to a counselor (cases assigned + active assignments)
+// @route   GET /api/v1/admin/counselors/:id/patients
+// @access  Private/Admin
+// `:id` is the Counselor profile _id (same id used by GET /admin/counselors/:id).
+// Returns one compact row per connected victim so the admin UI can list them
+// and link into the shared victim dashboard view.
+const EmotionAnalysis = require('../models/EmotionAnalysis');
+const getCounselorPatients = asyncHandler(async (req, res) => {
+  const counselor = await Counselor.findById(req.params.id).select('_id userId name');
+  if (!counselor) {
+    res.status(404);
+    throw new Error('Counselor not found.');
+  }
+
+  // Same linkage the counselor themself sees: Case.assignedCounselorId plus
+  // active Assignment rows keyed by the counselor's user id.
+  const [cases, assignments] = await Promise.all([
+    Case.find({ assignedCounselorId: counselor._id })
+      .populate('victimId', 'name email phone state district')
+      .select('victimId caseId category status assignedAt createdAt')
+      .lean(),
+    Assignment.find({ counselorId: counselor.userId, status: 'active' })
+      .populate('victimId', 'name email phone state district')
+      .select('victimId assignedAt')
+      .lean(),
+  ]);
+
+  // Merge by victim user id (a victim can appear in both collections)
+  const byVictim = new Map();
+  const upsert = (victimDoc, patch) => {
+    if (!victimDoc) return;
+    const key = (victimDoc._id || victimDoc).toString();
+    const existing = byVictim.get(key) || {
+      victimId: key,
+      name: victimDoc.name || 'Unknown',
+      email: victimDoc.email || '',
+      phone: victimDoc.phone || '',
+      location: [victimDoc.district, victimDoc.state].filter(Boolean).join(', '),
+      caseId: null,
+      category: null,
+      caseStatus: null,
+      assignedAt: null,
+      distressScore: null,
+      distressBand: null,
+      primaryEmotion: null,
+    };
+    Object.assign(existing, patch);
+    byVictim.set(key, existing);
+  };
+
+  cases.forEach((c) => {
+    const v = c.victimId;
+    if (!v) return;
+    upsert(typeof v === 'object' ? v : null, {
+      caseId: c.caseId || null,
+      category: c.category || null,
+      caseStatus: c.status || null,
+      assignedAt: c.assignedAt || c.createdAt || null,
+    });
+  });
+  assignments.forEach((a) => {
+    const v = a.victimId;
+    if (!v) return;
+    upsert(typeof v === 'object' ? v : null, {
+      assignedAt: a.assignedAt || null,
+    });
+  });
+
+  // Attach rolling mental-health indicators for list sorting/display
+  const victimIds = Array.from(byVictim.keys());
+  if (victimIds.length > 0) {
+    const analyses = await EmotionAnalysis.find({ victimId: { $in: victimIds } })
+      .select('victimId distressScore distressBand primaryEmotion updatedAt')
+      .lean();
+    analyses.forEach((a) => {
+      const row = byVictim.get(a.victimId?.toString());
+      if (row) {
+        row.distressScore = a.distressScore ?? null;
+        row.distressBand = a.distressBand || null;
+        row.primaryEmotion = a.primaryEmotion || null;
+      }
+    });
+
+    // Case/Assignment populate User, which carries no name/phone — enrich from
+    // the Victim profile where those fields actually live.
+    const profiles = await Victim.find({ userId: { $in: victimIds } })
+      .select('userId name phone district state')
+      .lean();
+    profiles.forEach((p) => {
+      const row = byVictim.get(p.userId?.toString());
+      if (!row) return;
+      if (p.name) row.name = p.name;
+      if (p.phone) row.phone = p.phone;
+      const loc = [p.district, p.state].filter(Boolean).join(', ');
+      if (loc) row.location = loc;
+    });
+  }
+
+  const patients = Array.from(byVictim.values()).sort((a, b) => {
+    const rank = { Severe: 0, High: 1, Moderate: 2, Low: 3 };
+    const ra = rank[a.distressBand] ?? 4;
+    const rb = rank[b.distressBand] ?? 4;
+    if (ra !== rb) return ra - rb;
+    return (b.assignedAt || '').localeCompare(a.assignedAt || '');
+  });
+
+  res.json({
+    success: true,
+    count: patients.length,
+    data: { counselor: { _id: counselor._id, name: counselor.name }, patients },
   });
 });
 
@@ -575,7 +694,7 @@ const getRequestById = asyncHandler(async (req, res) => {
     throw new Error('Request not found');
   }
 
-  if (request.victimId?.state && request.victimId.state !== req.user.state) {
+  if (request.victimId?.state && !isAuthorizedForState(request.victimId.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for this request');
   }
@@ -621,7 +740,7 @@ const assignCounselorToRequest = asyncHandler(async (req, res) => {
     throw new Error('Request not found');
   }
 
-  if (!request.victimId || normalizeLocation(request.victimId.state) !== normalizeLocation(req.user.state)) {
+  if (!request.victimId || !isAuthorizedForState(request.victimId.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for this request');
   }
@@ -642,7 +761,7 @@ const assignCounselorToRequest = asyncHandler(async (req, res) => {
     throw new Error('Only approved counselors can be assigned');
   }
 
-  if (normalizeLocation(counselorProfile.userId.state) !== normalizeLocation(req.user.state)) {
+  if (!isAuthorizedForState(counselorProfile.userId.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for this counselor');
   }
@@ -716,7 +835,7 @@ const verifyCounselor = asyncHandler(async (req, res) => {
   }
 
   // Security: Check State match
-  if (counselor.userId.state !== req.user.state) {
+  if (!isAuthorizedForState(counselor.userId.state, req.user.state)) {
     res.status(403);
     throw new Error('You are not authorized to verify counselors outside your state.');
   }
@@ -759,7 +878,7 @@ const assignCounselor = asyncHandler(async (req, res) => {
   }
 
   // Security check for victim state
-  if (normalizeLocation(victimUser.state) !== normalizeLocation(req.user.state)) {
+  if (!isAuthorizedForState(victimUser.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for victim');
   }
@@ -773,7 +892,7 @@ const assignCounselor = asyncHandler(async (req, res) => {
   }
 
   // Security check for counselor state
-  if (normalizeLocation(counselorUser.state) !== normalizeLocation(req.user.state)) {
+  if (!isAuthorizedForState(counselorUser.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized state access for counselor');
   }
@@ -837,8 +956,8 @@ const getVictimDetails = asyncHandler(async (req, res) => {
     throw new Error('Victim not found');
   }
 
-  // Security check
-  if (victim.userId.state !== req.user.state) {
+  // Security check - Admin can access all if state is "All", otherwise match state, case-insensitive, space-trimmed
+  if (!isAuthorizedForState(victim.userId?.state, req.user.state)) {
     res.status(403);
     throw new Error('Unauthorized');
   }
@@ -882,6 +1001,7 @@ module.exports = {
   getVictimDetails,
   getCounselors,
   getCounselorById,
+  getCounselorPatients,
   createCounselor,
   updateCounselor,
   deleteCounselor,

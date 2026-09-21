@@ -14,6 +14,15 @@ const DailyUpdate = require('../models/DailyUpdate');
 const Alert = require('../models/Alert');
 const Appointment = require('../models/Appointment');
 
+// ─── Realtime summary cache ──────────────────────────────────
+// The counselor dashboard polls every 60s (3s during live calls), but the AI
+// summary only needs to change when the victim sends new messages. Regenerating
+// an LLM summary on every poll added multiple seconds to each dashboard load.
+// Cache per victim per IST day; regenerate in the background when new messages
+// arrive while continuing to serve the previous summary instantly.
+const SUMMARY_CACHE = new Map(); // `${victimId}:${istDate}` -> { summary, generatedAt, lastMessageKey, regenerating }
+const SUMMARY_TTL_MS = 5 * 60 * 1000;
+
 // ─── helpers ────────────────────────────────────────────────────
 const isMongoObjectIdString = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
 
@@ -32,6 +41,12 @@ const normalizeObjectId = (value) => {
 // Verify that the requested victimId is assigned to the authenticated counselor.
 // Checks both Case.assignedCounselorId (Counselor profile _id) and Assignment.counselorId (User _id).
 const verifyCounselorVictimAccess = async (authenticatedUserId, victimId) => {
+  // Admins supervise every case: allow them through the counselor-scoped
+  // check so they can view the same dashboards as the assigned counselor.
+  const authUser = await User.findById(authenticatedUserId).select('role').lean();
+  if (authUser?.role === 'admin') {
+    return { counselor: null, authorized: true, caseMatch: null, assignmentMatch: null };
+  }
   const counselor = await Counselor.findOne({ userId: authenticatedUserId }).lean();
   const [caseMatch, assignmentMatch] = await Promise.all([
     counselor
@@ -310,9 +325,38 @@ const getVictimProfileById = asyncHandler(async (req, res) => {
     throw new Error('Forbidden: This victim is not assigned to your counselor profile.');
   }
 
-  const victim = await Victim.findOne({ userId: victimId }).select('-aadhaarNumber -panNumber');
-  const userCases = await Case.find({ victimId }).sort({ createdAt: -1 });
+  const victim = await Victim.findOne({ userId: victimId })
+    .populate('userId', 'email status state district profileImage createdAt registrationId role');
+  const userCases = await Case.find({ victimId })
+    .populate('assignedCounselorId', 'name specialization phone qualification')
+    .sort({ createdAt: -1 });
   let distressAnalysis = await EmotionAnalysis.findOne({ victimId }).lean();
+
+  let maskedAadhaar = null;
+  let maskedPan = null;
+  try {
+    const { decrypt } = require('../utils/encryption');
+    if (victim && victim.aadhaarNumber) {
+      const plaintextAadhaar = decrypt(victim.aadhaarNumber);
+      if (plaintextAadhaar) {
+        maskedAadhaar = `XXXX-XXXX-${plaintextAadhaar.slice(-4)}`;
+      }
+    }
+    if (victim && victim.panNumber) {
+      const plaintextPan = decrypt(victim.panNumber);
+      if (plaintextPan) {
+        maskedPan = `${plaintextPan.slice(0, 5)}XXXX${plaintextPan.slice(-1)}`;
+      }
+    }
+  } catch (e) {
+    console.error('Error decrypting identity information for counselor view', e);
+  }
+
+  const safeVictim = victim ? victim.toObject() : { userId: victimId, name: 'Assigned Victim' };
+  if (victim) {
+    safeVictim.aadhaarNumber = maskedAadhaar;
+    safeVictim.panNumber = maskedPan;
+  }
 
   if (!distressAnalysis) {
     distressAnalysis = {
@@ -324,7 +368,7 @@ const getVictimProfileById = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    data: { profile: victim ? victim.toObject() : { userId: victimId, name: 'Assigned Victim' }, cases: userCases, distressAnalysis },
+    data: { profile: safeVictim, cases: userCases, distressAnalysis },
   });
 });
 
@@ -414,7 +458,9 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
     latestAnalysisTimestamp: null,
     selfReportedFeeling: null,
     selfReportedAt: null,
+    realtimeSummary: "No interactions today.",
   };
+
   let timeOfDay = { morning: null, afternoon: null, evening: null, night: null };
 
   if (sessionIds.length > 0) {
@@ -423,7 +469,7 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
       senderType: 'victim',
       createdAt: { $gte: todayStartUTC, $lte: todayEndUTC },
     })
-      .select('metadata.distressScore metadata.emotion isFlagged createdAt')
+      .select('metadata.distressScore metadata.emotion isFlagged createdAt content senderType')
       .lean();
 
     if (todayMsgs.length > 0) {
@@ -441,6 +487,60 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
       todayData.avgDistressScore = avgDs;
       todayData.dominantEmotion = computeDominantEmotion(todayMsgs.map((m) => m.metadata?.emotion));
       todayData.crisisMessageCount = crisisCount;
+
+      const userMessagesText = todayMsgs.map((m) => m.content).filter(Boolean).join(' | ');
+      if (userMessagesText) {
+        const istDayKey = `${victimId}:${new Date(Date.now() + IST_OFFSET_MS).toISOString().slice(0, 10)}`;
+        const lastMessageKey = String(sorted[0]._id);
+        const cached = SUMMARY_CACHE.get(istDayKey);
+        const cacheFresh = cached && (Date.now() - cached.generatedAt) < SUMMARY_TTL_MS;
+
+        const { generatePatientSummary } = require('../services/aiService');
+
+        if (cached && cached.regenerating) {
+          // Regeneration already in flight — serve the previous summary instantly
+          todayData.realtimeSummary = cached.summary;
+          todayData.summaryGeneratedAt = cached.generatedAt;
+        } else if (cached && (cacheFresh || cached.lastMessageKey === lastMessageKey)) {
+          // Nothing new worth summarizing (or cache still young): serve cache.
+          // If messages changed, refresh in the background for the next poll.
+          todayData.realtimeSummary = cached.summary;
+          todayData.summaryGeneratedAt = cached.generatedAt;
+          if (cached.lastMessageKey !== lastMessageKey) {
+            cached.regenerating = true;
+            generatePatientSummary(userMessagesText)
+              .then((summary) => {
+                SUMMARY_CACHE.set(istDayKey, { summary, generatedAt: Date.now(), lastMessageKey, regenerating: false });
+              })
+              .catch((err) => {
+                console.error('Error regenerating realtime summary:', err.message);
+                cached.regenerating = false;
+              });
+          }
+        } else {
+          // First request of the day (or cache too old): kick off generation in the
+          // background and serve instantly — the next poll picks up the result.
+          // Never block the dashboard poll on the LLM (can take 10s+).
+          SUMMARY_CACHE.set(istDayKey, {
+            summary: cached?.summary || 'Generating summary…',
+            generatedAt: cached?.generatedAt || Date.now(),
+            lastMessageKey,
+            regenerating: true,
+          });
+          todayData.realtimeSummary = cached?.summary || 'Generating summary…';
+          generatePatientSummary(userMessagesText)
+            .then((summary) => {
+              SUMMARY_CACHE.set(istDayKey, { summary, generatedAt: Date.now(), lastMessageKey, regenerating: false });
+            })
+            .catch((err) => {
+              console.error('Error generating realtime summary:', err.message);
+              // Allow the next poll to retry
+              SUMMARY_CACHE.delete(istDayKey);
+            });
+        }
+      } else {
+        todayData.realtimeSummary = 'No interactions today.';
+      }
 
       // Time-of-day grouping (IST hours: morning 5-11, afternoon 12-17, evening 18-23, night 0-4)
       const buckets = { morning: [], afternoon: [], evening: [], night: [] };
@@ -496,6 +596,8 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
         emotionsBreakdown: emotionAnalysis.emotionsBreakdown,
         lastAnalyzedAt: emotionAnalysis.updatedAt,
         crisisActive: hasTodayCrisis,
+        recentLog: emotionAnalysis.recentLog || [],
+        isVoiceCallActive: emotionAnalysis.isVoiceCallActive || false,
       }
     : {
         distressScore: null,
@@ -504,6 +606,8 @@ const getVictimMentalHealthDashboard = asyncHandler(async (req, res) => {
         emotionsBreakdown: null,
         lastAnalyzedAt: null,
         crisisActive: hasTodayCrisis,
+        recentLog: [],
+        isVoiceCallActive: false,
       };
 
   const victimWithUser = victim ? { ...victim, userId: { ...victim.userId, profileImage: victimUser?.profileImage } } : { userId: { _id: victimId, profileImage: victimUser?.profileImage } };
@@ -718,6 +822,18 @@ const updateAppointmentStatus = asyncHandler(async (req, res) => {
   }
 
   if (status) appt.status = status;
+
+  // Track decision metadata for request approval/rejection flows
+  if (status === 'CONFIRMED' && !appt.approvedAt) {
+    appt.approvedAt = new Date();
+  }
+  if (status === 'REJECTED') {
+    appt.rejectionReason = req.body.rejectionReason || 'No reason provided';
+  }
+  if (status === 'COMPLETED' && !appt.completedAt) {
+    appt.completedAt = new Date();
+  }
+
   await appt.save();
 
   res.json({ success: true, data: appt });
@@ -817,6 +933,319 @@ const getFollowUps = asyncHandler(async (req, res) => {
   });
 });
 
+
+// @desc    Shell summary: live badge counts for navbar/sidebar (victims, pending requests, new alerts, live calls)
+// @route   GET /api/v1/counselor/summary
+// @access  Private/Counselor
+const getCounselorSummary = asyncHandler(async (req, res) => {
+  const authenticatedUserId = req.user?.userId || req.user?.id || req.user?._id;
+  const counselor = await Counselor.findOne({ userId: authenticatedUserId }).lean();
+  if (!counselor) {
+    res.status(404);
+    throw new Error('Counselor profile not found for the authenticated user.');
+  }
+
+  const { todayStartUTC } = getISTDayBoundaries();
+
+  // Same dual-path access rule used everywhere else: Case.assignedCounselorId (profile _id)
+  // OR Assignment (user _id, active).
+  const [caseVictimIds, assignmentVictimIds] = await Promise.all([
+    Case.find({ assignedCounselorId: counselor._id }).distinct('victimId').lean(),
+    Assignment.find({ counselorId: authenticatedUserId, status: 'active' }).distinct('victimId').lean(),
+  ]);
+
+  const victimIds = [...new Set([...caseVictimIds, ...assignmentVictimIds].map(String))];
+
+  const [pendingRequests, newAlerts, liveCalls, followUps] = await Promise.all([
+    Appointment.countDocuments({ counselorId: authenticatedUserId, status: 'PENDING' }),
+    victimIds.length === 0 ? 0 : Alert.countDocuments({
+      status: 'NEW',
+      victimId: { $in: victimIds },
+      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+    }),
+    victimIds.length === 0 ? 0 : EmotionAnalysis.countDocuments({
+      victimId: { $in: victimIds },
+      isVoiceCallActive: true,
+    }),
+    // Follow-up = assigned victim with no contact in 3+ days (same rule as the Follow-Ups page)
+    (async () => {
+      if (victimIds.length === 0) return 0;
+      const lastMsgs = await ChatMessage.aggregate([
+        { $match: { sessionId: { $in: await ChatSession.find({ victimId: { $in: victimIds } }).distinct('_id') } } },
+        { $group: { _id: '$sessionId', last: { $max: '$createdAt' } } },
+      ]);
+      const sessionVictimMap = await ChatSession.find({ _id: { $in: lastMsgs.map((r) => r._id) } })
+        .select('victimId')
+        .lean();
+      const lastContactByVictim = {};
+      lastMsgs.forEach((r) => {
+        const vs = sessionVictimMap.find((s) => s._id.toString() === r._id.toString());
+        if (vs) lastContactByVictim[vs.victimId.toString()] = r.last;
+      });
+      const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+      return victimIds.filter((vid) => {
+        const last = lastContactByVictim[vid];
+        return !last || Date.now() - new Date(last).getTime() > THREE_DAYS;
+      }).length;
+    })(),
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      victims: victimIds.length,
+      pendingRequests,
+      newAlerts,
+      liveCalls,
+      followUps,
+    },
+  });
+});
+
+// @desc    Unified search across the counselor's caseload (victims by name/case ID, appointments by title)
+// @route   GET /api/v1/counselor/search?q=...
+// @access  Private/Counselor
+const searchCounselorCaseload = asyncHandler(async (req, res) => {
+  const authenticatedUserId = req.user?.userId || req.user?.id || req.user?._id;
+  const q = String(req.query.q || '').trim();
+
+  if (q.length < 2) {
+    return res.json({ success: true, data: { victims: [], appointments: [] } });
+  }
+
+  const counselor = await Counselor.findOne({ userId: authenticatedUserId }).lean();
+  if (!counselor) {
+    res.status(404);
+    throw new Error('Counselor profile not found for the authenticated user.');
+  }
+
+  const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rx = new RegExp(escapeRegex(q), 'i');
+
+  const [cases, assignments] = await Promise.all([
+    Case.find({ assignedCounselorId: counselor._id }).populate('victimId', 'name email registrationId').lean(),
+    Assignment.find({ counselorId: authenticatedUserId, status: 'active' }).populate('victimId', 'name email registrationId').lean(),
+  ]);
+
+  // Build victim map: userId -> { victim doc fields + caseId list }
+  const victimMap = new Map();
+  const pushVictim = (victimPopulated, caseIdStr) => {
+    if (!victimPopulated || typeof victimPopulated !== 'object') return;
+    const uid = String(victimPopulated._id);
+    if (!victimMap.has(uid)) {
+      victimMap.set(uid, {
+        userId: uid,
+        name: victimPopulated.name || 'Assigned Victim',
+        registrationId: victimPopulated.registrationId || null,
+        district: victimPopulated.district || null,
+        caseIds: [],
+      });
+    }
+    if (caseIdStr && !victimMap.get(uid).caseIds.includes(caseIdStr)) {
+      victimMap.get(uid).caseIds.push(caseIdStr); // eslint-disable-line no-unused-expressions
+    }
+  };
+
+  cases.forEach((c) => {
+    const v = c.victimId;
+    if (v && typeof v === 'object') {
+      pushVictim({ ...v, district: v.district || c.district || null }, c.caseId || null);
+    }
+  });
+  assignments.forEach((a) => pushVictim(a.victimId, null));
+
+  // Enrich with Victim profile data — real names, phone and district live there
+  // (Case/Assignment populate User refs, which carry no name field)
+  const uids = [...victimMap.keys()];
+  const victimProfiles = uids.length > 0
+    ? await Victim.find({ userId: { $in: uids } }).select('name phone district userId').lean()
+    : [];
+  victimProfiles.forEach((vp) => {
+    const entry = victimMap.get(String(vp.userId));
+    if (entry) {
+      if (vp.name) entry.name = vp.name;
+      if (vp.district) entry.district = entry.district || vp.district;
+      entry.phone = vp.phone || null;
+    }
+  });
+
+  const allVictims = [...victimMap.values()];
+  const matchedVictims = allVictims.filter((v) =>
+    rx.test(v.name || '')
+    || rx.test(v.caseIds.join(' ') || '')
+    || rx.test(v.registrationId || '')
+    || rx.test(v.phone || '')
+  ).slice(0, 6);
+
+  const matchedAppointments = await Appointment.find({
+    counselorId: authenticatedUserId,
+    $or: [{ title: rx }, { victimName: rx }],
+  })
+    .sort({ scheduledAt: -1 })
+    .limit(4)
+    .select('title victimName scheduledAt status victimId')
+    .lean();
+
+  res.json({
+    success: true,
+    data: {
+      victims: matchedVictims,
+      appointments: matchedAppointments.map((a) => ({
+        _id: a._id,
+        title: a.title,
+        victimName: a.victimName,
+        scheduledAt: a.scheduledAt,
+        status: a.status,
+        victimId: a.victimId ? String(a.victimId) : null,
+      })),
+    },
+  });
+});
+
+// @desc    Notifications feed for the counselor (alerts + appointment requests)
+// @route   GET /api/v1/counselor/notifications
+// @access  Private/Counselor
+const getCounselorNotifications = asyncHandler(async (req, res) => {
+  const authenticatedUserId = req.user?.userId || req.user?.id || req.user?._id;
+  const counselor = await Counselor.findOne({ userId: authenticatedUserId }).lean();
+  if (!counselor) {
+    res.status(404);
+    throw new Error('Counselor profile not found for the authenticated user.');
+  }
+
+  const caseVictimIds = await Case.find({ assignedCounselorId: counselor._id }).distinct('victimId').lean();
+  const assignmentVictimIds = await Assignment.find({ counselorId: authenticatedUserId, status: 'active' }).distinct('victimId').lean();
+  const victimIds = [...new Set([...caseVictimIds, ...assignmentVictimIds].map(String))];
+
+  const [alerts, pendingAppointments] = await Promise.all([
+    Alert.find({ victimId: { $in: victimIds } })
+      .sort({ createdAt: -1 })
+      .limit(15)
+      .populate('callLogId', 'callStatus providerCallId initiatedAt failureReason')
+      .populate('victimId', 'name')
+      .lean(),
+    Appointment.find({ counselorId: authenticatedUserId, status: 'PENDING' })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('victimName scheduledAt status appointmentType createdAt')
+      .lean(),
+  ]);
+
+  const alertItems = alerts.map((a) => ({
+    _id: `alert-${a._id}`,
+    kind: 'alert',
+    severity: a.severity,
+    type: a.alertType,
+    title: a.alertType === 'AI_CRISIS_DETECTED'
+      ? `Crisis signal — ${(a.victimId?.name) || 'assigned victim'}`
+      : (a.victimId?.name ? `${a.victimId.name}: ${a.alertType}` : a.alertType),
+    description: a.description,
+    status: a.status,
+    callStatus: a.callStatus || a.callLogId?.callStatus || null,
+    callFailureReason: a.callFailureReason || a.callLogId?.failureReason || null,
+    createdAt: a.createdAt,
+    refId: a._id,
+  }));
+
+  const apptItems = pendingAppointments.map((ap) => ({
+    _id: `appt-${ap._id}`,
+    kind: 'appointment',
+    type: 'Consultation Request',
+    title: `${ap.victimName} requested a consultation`,
+    description: `${ap.appointmentType || 'Consultation'} — scheduled for ${new Date(ap.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+    status: ap.status,
+    createdAt: ap.createdAt,
+    refId: ap._id,
+  }));
+
+  const items = [...alertItems, ...apptItems].sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt));
+
+  res.json({
+    success: true,
+    data: {
+      items,
+      unreadCount: items.filter((i) => i.kind === 'alert' && i.status === 'NEW').length + apptItems.length,
+    },
+  });
+});
+
+// @desc    Acknowledge an alert (marks it ACKNOWLEDGED so it stops counting as new)
+// @route   PATCH /api/v1/counselor/notifications/alerts/:id/acknowledge
+// @access  Private/Counselor
+const acknowledgeAlert = asyncHandler(async (req, res) => {
+  const authenticatedUserId = req.user?.userId || req.user?.id || req.user?._id;
+  const counselor = await Counselor.findOne({ userId: authenticatedUserId }).lean();
+  if (!counselor) {
+    res.status(404);
+    throw new Error('Counselor profile not found for the authenticated user.');
+  }
+
+  if (!isMongoObjectIdString(req.params.id)) {
+    res.status(404);
+    throw new Error('Alert not found');
+  }
+
+  const caseVictimIds = await Case.find({ assignedCounselorId: counselor._id }).distinct('victimId').lean();
+  const assignmentVictimIds = await Assignment.find({ counselorId: authenticatedUserId, status: 'active' }).distinct('victimId').lean();
+  const victimIds = [...new Set([...caseVictimIds, ...assignmentVictimIds].map(String))];
+
+  const alert = await Alert.findOne({ _id: req.params.id, victimId: { $in: victimIds } });
+  if (!alert) {
+    res.status(404);
+    throw new Error('Alert not found or not in your caseload');
+  }
+
+  if (alert.status === 'NEW') {
+    alert.status = 'ACKNOWLEDGED';
+    alert.acknowledgedAt = new Date();
+    alert.acknowledgedBy = authenticatedUserId;
+    await alert.save();
+  }
+
+  res.json({ success: true, data: alert });
+});
+
+// @desc    Get victim chat history
+// @route   GET /api/v1/counselor/victims/:id/chats
+// @access  Private/Counselor
+const getVictimChats = asyncHandler(async (req, res) => {
+  const authenticatedUserId = req.user?.userId || req.user?.id || req.user?._id;
+  const victimId = req.params.id;
+
+  if (!isMongoObjectIdString(victimId)) {
+    res.status(404);
+    throw new Error('Victim not found.');
+  }
+
+  const { authorized } = await verifyCounselorVictimAccess(authenticatedUserId, victimId);
+  if (!authorized) {
+    res.status(403);
+    throw new Error('Forbidden: This victim is not assigned to your counselor profile.');
+  }
+
+  const sessions = await ChatSession.find({ victimId }).sort({ createdAt: -1 });
+  const sessionIds = sessions.map(s => s._id);
+
+  const messages = await ChatMessage.find({ sessionId: { $in: sessionIds } })
+    .sort({ createdAt: 1 })
+    .lean();
+
+  const chats = sessions.map(session => {
+    return {
+      _id: session._id,
+      createdAt: session.createdAt,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      messages: messages.filter(m => m.sessionId.toString() === session._id.toString())
+    };
+  });
+
+  res.json({
+    success: true,
+    data: chats
+  });
+});
+
 module.exports = {
   normalizeObjectId,
   getMyProfile,
@@ -831,4 +1260,9 @@ module.exports = {
   createAppointment,
   updateAppointmentStatus,
   getFollowUps,
+  getVictimChats,
+  getCounselorSummary,
+  searchCounselorCaseload,
+  getCounselorNotifications,
+  acknowledgeAlert,
 };

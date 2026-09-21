@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import './AdminCounselors.css';
 
@@ -15,6 +16,7 @@ const PROFESSION_SUGGESTIONS = [
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 export default function AdminCounselors() {
+  const navigate = useNavigate();
   const [counselors, setCounselors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +29,10 @@ export default function AdminCounselors() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedCounselor, setSelectedCounselor] = useState(null);
+
+  // Connected-patients supervision modal (reuses the counselor dashboard view)
+  const [patientsModal, setPatientsModal] = useState(null); // { counselor, patients }
+  const [patientsLoading, setPatientsLoading] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -294,6 +300,28 @@ export default function AdminCounselors() {
     setIsDeleteModalOpen(true);
   };
 
+  // Fetch the victims connected to a counselor and show the supervision list
+  const openPatientsModal = async (counselor) => {
+    setSelectedCounselor(counselor);
+    setPatientsModal({ counselor, patients: [] });
+    setPatientsLoading(true);
+    try {
+      const res = await api.get(`/admin/counselors/${counselor._id}/patients`);
+      setPatientsModal({ counselor, patients: res.data?.data?.patients || [] });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to load connected patients', 'error');
+      setPatientsModal(null);
+    } finally {
+      setPatientsLoading(false);
+    }
+  };
+
+  const openPatientDashboard = (victimId) => {
+    if (!victimId) return;
+    // Primary admin route for the shared counselor-style dashboard
+    navigate(`/admin/victims/${victimId}`);
+  };
+
   // Submit Add Counselor
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -544,12 +572,19 @@ export default function AdminCounselors() {
                   </div>
                 </div>
 
-                {/* Status Badge */}
-                <div className="card-status-row">
+                {/* Connected patients + Status Badge */}
+                <div className="card-status-row" style={{ justifyContent: 'space-between' }}>
                   <span className={`counselor-status-pill ${isActive ? 'active' : 'inactive'}`}>
                     <span className="status-dot"></span>
                     <span>{isActive ? 'Active' : 'Inactive'}</span>
                   </span>
+                  <button
+                    className="btn-patients-link"
+                    onClick={() => openPatientsModal(counselor)}
+                    title="View victims connected to this counselor"
+                  >
+                    🧑‍🤝‍🧑 Connected Patients
+                  </button>
                 </div>
 
                 {/* Card Actions: View, Edit, Delete */}
@@ -1245,6 +1280,80 @@ export default function AdminCounselors() {
                   }}
                 >
                   Edit Profile
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          CONNECTED PATIENTS MODAL (supervision — links into shared victim dashboard)
+          ========================================================================= */}
+      {patientsModal && (
+        <div className="counselor-modal-overlay" onClick={() => setPatientsModal(null)}>
+          <div className="counselor-modal-content patients-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-bar">
+              <h2>🧑‍🤝‍🧑 Connected Patients — {patientsModal.counselor?.name}</h2>
+              <button className="modal-close-btn" onClick={() => setPatientsModal(null)}>
+                &times;
+              </button>
+            </div>
+
+            <div className="modal-body-form">
+              {patientsLoading ? (
+                <div className="patients-empty">Loading connected patients…</div>
+              ) : patientsModal.patients.length === 0 ? (
+                <div className="patients-empty">
+                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🕊️</div>
+                  No victims are currently connected to this counselor.
+                </div>
+              ) : (
+                <div className="patients-list">
+                  {patientsModal.patients.map((p) => {
+                    const bandClass =
+                      p.distressBand === 'Severe' ? 'band-severe'
+                      : p.distressBand === 'High' ? 'band-high'
+                      : p.distressBand === 'Moderate' ? 'band-moderate'
+                      : 'band-low';
+                    return (
+                      <button
+                        key={p.victimId}
+                        type="button"
+                        className="patient-row"
+                        onClick={() => openPatientDashboard(p.victimId)}
+                        title="Open the same mental-health dashboard the counselor sees"
+                      >
+                        <div className="patient-avatar">
+                          {(p.name || 'U').slice(0, 1).toUpperCase()}
+                        </div>
+                        <div className="patient-main">
+                          <span className="patient-name">{p.name}</span>
+                          <span className="patient-meta">
+                            {[p.caseId, p.location].filter(Boolean).join(' · ') || 'No case linked'}
+                          </span>
+                        </div>
+                        <div className="patient-side">
+                          {p.distressScore != null ? (
+                            <span className={`patient-band ${bandClass}`}>
+                              {p.distressScore}/100 · {p.distressBand}
+                            </span>
+                          ) : (
+                            <span className="patient-band band-unknown">No data</span>
+                          )}
+                          {p.primaryEmotion && (
+                            <span className="patient-emotion">{p.primaryEmotion}</span>
+                          )}
+                        </div>
+                        <span className="patient-open-arrow">→</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="modal-actions-footer">
+                <button type="button" className="btn-cancel" onClick={() => setPatientsModal(null)}>
+                  Close
                 </button>
               </div>
             </div>

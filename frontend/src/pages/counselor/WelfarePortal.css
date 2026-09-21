@@ -1,0 +1,641 @@
+/* WelfarePortal.css — Government Portal Digital Governance Theme */
+
+.welfare-portal-page {
+  padding: 1.5rem;
+  max-width: 1560px;
+  margin: 0 auto;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+}
+
+/* 1. Header Banner */
+.welfare-header-banner {
+  background: linear-gradient(135deg, #0f172a 0%, #134e4a 60%, #0d9488 100%);
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.15);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-left: 5px solid #f59e0b;
+}
+
+.welfare-header-content h1 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.welfare-header-subtitle {
+  font-size: 0.88rem;
+  color: #cbd5e1;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.welfare-header-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.welfare-gov-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  padding: 0.4rem 1rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #fef08a;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* 2. Victim Selector Bar */
+.welfare-victim-selector-bar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.victim-selector-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.selector-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0d9488;
+}
+
+.selector-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.selector-subtitle {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.victim-dropdown-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  max-width: 480px;
+  justify-content: flex-end;
+}
+
+.victim-select-input {
+  width: 100%;
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  border: 1.5px solid #cbd5e1;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #f8fafc;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.victim-select-input:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+  background-color: #ffffff;
+}
+
+/* 3. Main Grid: Two Columns (Dossier + Welfare Services) */
+.welfare-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(360px, 1.15fr);
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+@media (max-width: 1200px) {
+  .welfare-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 4. Registered Victim Dossier Column */
+.victim-dossier-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Dossier Top Profile Card */
+.dossier-hero-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.dossier-hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0d9488, #3b82f6, #f59e0b);
+}
+
+.dossier-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dossier-avatar-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #0d9488;
+  background: #f1f5f9;
+}
+
+.dossier-avatar-fallback {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0f172a, #0d9488);
+  color: #ffffff;
+  font-size: 1.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #99f6e4;
+}
+
+.dossier-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dossier-hero-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.dossier-victim-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.badge-status {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge-status.active {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.badge-status.assigned {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+}
+
+.badge-status.pending {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde047;
+}
+
+.dossier-hero-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.dossier-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dossier-meta-item strong {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+/* Sections & Cards */
+.dossier-section-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.dossier-section-header {
+  background: #f8fafc;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dossier-section-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.dossier-section-title svg {
+  color: #0d9488;
+}
+
+.dossier-grid-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.dossier-field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dossier-field-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dossier-field-val {
+  font-size: 0.88rem;
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.dossier-field-val.masked {
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.05em;
+  color: #0369a1;
+  background: #f0f9ff;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.dossier-field-val.highlight {
+  color: #0d9488;
+}
+
+/* Full Width Fields (Description / Incident) */
+.dossier-full-field {
+  padding: 1.25rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.dossier-description-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #334155;
+  white-space: pre-line;
+  margin-top: 0.4rem;
+}
+
+/* Emergency Contacts Table / List */
+.emergency-contacts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.emergency-contact-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #0d9488;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+
+.emergency-contact-name {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.92rem;
+  margin-bottom: 0.25rem;
+}
+
+.emergency-contact-rel {
+  font-size: 0.76rem;
+  color: #0d9488;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.emergency-contact-phone {
+  font-size: 0.84rem;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Tag Chips */
+.tag-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.tag-chip {
+  background: #f0fdfa;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+/* Documents List */
+.docs-list-wrap {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.doc-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.doc-item-row:hover {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+.doc-name-side {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.doc-view-link {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0284c7;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 4px;
+  background: #e0f2fe;
+}
+
+.doc-view-link:hover {
+  background: #bae6fd;
+}
+
+/* 5. Welfare Services Column */
+.welfare-services-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.welfare-services-header-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  color: #ffffff;
+  border-left: 4px solid #0d9488;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.welfare-services-header-card h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ffffff;
+}
+
+.welfare-services-header-card p {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Service Schemes Cards */
+.welfare-scheme-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.welfare-scheme-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.scheme-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.scheme-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+}
+
+.scheme-icon-box.financial { background: #fef3c7; color: #b45309; }
+.scheme-icon-box.medical { background: #fee2e2; color: #b91c1c; }
+.scheme-icon-box.legal { background: #e0f2fe; color: #0369a1; }
+.scheme-icon-box.shelter { background: #f3e8ff; color: #7e22ce; }
+.scheme-icon-box.skill { background: #dcfce7; color: #15803d; }
+
+.scheme-title-area h3 {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.2rem;
+}
+
+.scheme-title-area span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.scheme-desc {
+  font-size: 0.8rem;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0 0 0.85rem;
+}
+
+.scheme-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.scheme-status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.scheme-status-pill.ready {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.scheme-status-pill.ready .dot {
+  background: #22c55e;
+}
+
+/* Integration Notice Banner */
+.welfare-integration-notice {
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.welfare-integration-notice p {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0.35rem 0 0;
+}
+
+/* Loading & Empty States */
+.welfare-loading-state,
+.welfare-empty-state {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.welfare-loading-spinner {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  animation: spin 2s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

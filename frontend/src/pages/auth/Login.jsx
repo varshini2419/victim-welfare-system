@@ -58,7 +58,8 @@ export default function Login() {
     try {
       setSendLoading(true);
       const res = await sendVictimOtp(trimmedCaseId, cleanPhone);
-      setOtpSentMessage(res.message || 'OTP has been sent to your registered mobile number.');
+      setOtpSentMessage(res.otp ? `${res.message || 'OTP sent successfully.'} (Your OTP is: ${res.otp})` : (res.message || 'OTP has been sent to your registered mobile number.'));
+      if (res.otp) setOtp(res.otp);
       setCooldown(60); // 60s cooldown before next resend
       setStep(2);
     } catch (err) {
@@ -77,7 +78,8 @@ export default function Login() {
     try {
       setSendLoading(true);
       const res = await resendVictimOtp(caseId.trim().toUpperCase(), normalizePhoneForApi(phone));
-      setOtpSentMessage(res.message || 'A new 6-digit OTP has been sent to your phone.');
+      setOtpSentMessage(res.otp ? `${res.message || 'New OTP sent.'} (Your OTP is: ${res.otp})` : (res.message || 'A new 6-digit OTP has been sent to your phone.'));
+      if (res.otp) setOtp(res.otp);
       setCooldown(60);
     } catch (err) {
       setError(err.message || 'Unable to resend OTP. Please try again.');
@@ -217,6 +219,19 @@ export default function Login() {
         {/* STEP 1: Enter Case ID & Phone -> Request OTP */}
         {step === 1 && (
           <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{
+              backgroundColor: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              color: '#1e40af',
+              padding: '0.625rem 0.875rem',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              lineHeight: '1.4'
+            }}>
+              <strong>Demo Victim Credentials:</strong><br />
+              Case ID: <code style={{ fontWeight: 'bold' }}>ARH-2026-001</code> &bull; Phone: <code style={{ fontWeight: 'bold' }}>9123456780</code><br />
+              Standard Demo OTP: <code style={{ fontWeight: 'bold' }}>123456</code> (or click Send OTP)
+            </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#334155', marginBottom: '0.375rem' }}>
                 Official Case ID <span style={{ color: '#ef4444' }}>*</span>

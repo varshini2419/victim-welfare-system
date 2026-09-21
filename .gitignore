@@ -102,3 +102,9 @@ Thumbs.db
 frontend/dist
 dist/
 build/
+
+# Local tools
+.freebuff/
+
+# Local agent tooling state
+.claude/

@@ -178,6 +178,12 @@ const sendLoginOtpSMS = async (phone, name, caseId, otp) => {
       message: error.message,
       moreInfo: error.moreInfo,
     });
+    if (error.code === 21608) {
+      return {
+        success: false,
+        error: `Twilio Trial Error (Code 21608): The number ${mobile} is not verified in your Twilio Console. Add it under "Verified Caller IDs" in Twilio Console to receive SMS.`
+      };
+    }
     const providerCode = error.code ? ` (code ${error.code})` : '';
     return { success: false, error: `Twilio SMS request failed${providerCode}: ${error.message}` };
   }

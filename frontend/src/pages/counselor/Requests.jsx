@@ -8,8 +8,10 @@ export default function Requests() {
 
   const loadRequests = async () => {
     try {
-      const response = await api.get('/counselor/appointments/pending');
-      setRequests(response.data.data || []);
+      // Real endpoint: all counselor appointments; filter pending requests client-side
+      const response = await api.get('/counselor/appointments?range=all');
+      const all = response.data.data || [];
+      setRequests(all.filter((a) => (a.status || '').toUpperCase() === 'PENDING'));
       setError('');
     } catch (err) {
       setError(
@@ -25,7 +27,7 @@ export default function Requests() {
 
   const approve = async (id) => {
     try {
-      await api.patch(`/counselor/appointments/${id}/approve`);
+      await api.patch(`/counselor/appointments/${id}`, { status: 'CONFIRMED' });
       await loadRequests();
     } catch (err) {
       setError(
@@ -40,7 +42,8 @@ export default function Requests() {
       window.prompt('Reason for rejection (optional):') || '';
 
     try {
-      await api.patch(`/counselor/appointments/${id}/reject`, {
+      await api.patch(`/counselor/appointments/${id}`, {
+        status: 'REJECTED',
         rejectionReason,
       });
 

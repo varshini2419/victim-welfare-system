@@ -1,7 +1,9 @@
 .admin-layout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background-color: #f3f4f6; /* Light gray background matching screenshot */
   color: #1f2937;
 }
@@ -18,7 +20,8 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: none; /* Removed unnecessary shadows */
   z-index: 10;
-  width: 100vw;
+  width: 100%;
+  flex-shrink: 0;
 }
 
 .navbar-left {
@@ -122,88 +125,198 @@
   color: #ffffff;
 }
 
-/* SIDEBAR & BODY */
+/* SIDEBAR & BODY - Strict Viewport Lock preventing overflow stretching */
 .admin-body {
   display: flex;
   flex: 1;
+  height: calc(100vh - 64px);
+  max-height: calc(100vh - 64px);
   overflow: hidden;
 }
 
+/* SIDEBAR: Pinned to viewport, 5-part flex column layout */
 .admin-sidebar {
-  width: 260px;
-  background-color: #ffffff;
-  border-right: 1px solid #e5e7eb;
-  padding: 1.5rem 0;
+  width: 270px;
+  height: 100%;
+  max-height: 100%;
+  background: linear-gradient(180deg, #02173e 0%, #031c4b 45%, #02163a 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.02);
+  overflow-x: hidden;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  z-index: 5;
+  flex-shrink: 0;
+  position: relative;
 }
 
-.sidebar-heading {
-  font-size: 1.1rem;
+/* 1. TOP BRANDING SECTION: Centered Title, Slogan & Subtle Tricolor Accent */
+.admin-sidebar-branding {
+  padding: 1.35rem 1rem 0;
+  width: 100%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.admin-sidebar-brand-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  color: #ffffff !important;
+}
+
+.admin-sidebar-brand-link:visited,
+.admin-sidebar-brand-link:active,
+.admin-sidebar-brand-link:hover,
+.admin-sidebar-brand-link:focus {
+  color: #ffffff !important;
+  text-decoration: none;
+  opacity: 0.95;
+}
+
+.admin-sidebar .admin-brand-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.22rem;
   font-weight: 700;
-  color: #111827;
-  padding: 0 1.5rem;
-  margin-bottom: 1.5rem;
+  color: #ffffff !important;
+  line-height: 1.25;
+  text-align: center;
+  letter-spacing: 0.015em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.admin-brand-slogan {
+  font-size: 0.78rem;
+  font-weight: 400;
+  font-style: italic;
+  color: #cbd5e1;
+  text-align: center;
+  margin-top: 0.35rem;
+  letter-spacing: 0.02em;
+}
+
+.admin-brand-tricolor-accent {
+  width: 68px;
+  height: 2.5px;
+  background: linear-gradient(90deg, #ff9933 0%, #ffffff 50%, #138808 100%);
+  border-radius: 999px;
+  margin: 0.65rem auto 0;
+  box-shadow: 0 0 6px rgba(255, 153, 51, 0.45);
+}
+
+/* 2. CLEAR SPACING: Sufficient vertical separation below the tricolor accent */
+.admin-sidebar-spacing {
+  height: 1.15rem;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* 3. NAVIGATION SECTION: Starts strictly BELOW the branding */
+.admin-sidebar-nav-container {
+  width: 100%;
+  padding: 0 0.9rem;
+  flex-shrink: 0;
 }
 
 .admin-nav-list {
   list-style: none;
   padding: 0;
   margin: 0;
-}
-
-.nav-item {
-  display: flex;
-  align-items: flex-start; /* Ensure icon aligns with top of text */
-  padding: 0.875rem 1.5rem;
-  color: #4b5563;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.2s ease-in-out;
-  border-left: 4px solid transparent;
-}
-
-.nav-item:hover {
-  background-color: #f9fafb;
-  color: #111827;
-}
-
-.nav-item.active {
-  background-color: #f3f4f6;
-  color: #21215b; /* Match header */
-  border-left-color: #21215b;
-}
-
-.nav-icon {
-  font-size: 1.25rem;
-  margin-right: 1rem;
-  width: 24px;
-  text-align: center;
-  margin-top: 0.1rem; /* Adjust icon alignment slightly for the stacked text */
-}
-
-.nav-text-container {
   display: flex;
   flex-direction: column;
+  gap: 0.35rem;
 }
 
-.nav-label-primary {
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.2;
+.admin-sidebar .nav-item {
+  display: flex;
+  align-items: center;
+  padding: 0.68rem 0.95rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-weight: 500;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
 }
 
-.nav-label-secondary {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: #6b7280;
-  margin-top: 0.2rem;
+.admin-sidebar .nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.13);
+  color: #ffffff;
+  transform: translateX(3px);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.admin-sidebar .nav-item.active {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.95) 0%, rgba(37, 99, 235, 0.98) 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), 0 0 12px rgba(37, 99, 235, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-left: 3.5px solid #ff9933;
+}
+
+.admin-sidebar .nav-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 0.75rem;
+  flex-shrink: 0;
+}
+
+.admin-nav-icon {
+  width: 19px;
+  height: 19px;
+  color: currentColor;
+  transition: color 0.18s ease;
+}
+
+.admin-sidebar .nav-label-primary {
+  font-size: 0.86rem;
+  line-height: 1.25;
+  flex: 1;
+}
+
+/* Active Alert Dot Indicator */
+.admin-nav-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* 4. FLEXIBLE EMPTY SPACE: Absorbs leftover viewport height dynamically */
+.admin-sidebar-flexible-space {
+  flex: 1;
+  min-height: 14px;
+}
+
+/* 5. BOTTOM GOVERNMENT / DECORATIVE SECTION: Parliament, Tricolor wave & text */
+.admin-sidebar-bottom-section {
+  height: 145px;
+  width: 100%;
+  background: url('/images/admin-sidebar-bg.jpg') no-repeat bottom center / 270px auto;
+  flex-shrink: 0;
 }
 
 .admin-main-content {
   flex: 1;
-  padding: 2rem;
+  height: 100%;
   overflow-y: auto;
+  padding: 2rem;
   background-color: #f9fafb; /* Light white-gray for main content */
 }
 
@@ -216,6 +329,12 @@
 }
 
 @media (max-width: 768px) {
+  .admin-layout {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
   .admin-navbar {
     display: flex;
     flex-direction: column;
@@ -231,39 +350,41 @@
   }
   
   .admin-body {
+    height: auto;
+    max-height: none;
     flex-direction: column;
+    overflow: visible;
   }
   
   .admin-sidebar {
     width: 100%;
+    height: auto;
+    max-height: none;
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.75rem 0;
+    background-size: cover;
   }
-  
-  .sidebar-heading {
-    text-align: center;
-    margin-bottom: 1rem;
+
+  .admin-sidebar-branding,
+  .admin-sidebar-spacing,
+  .admin-sidebar-flexible-space,
+  .admin-sidebar-bottom-section {
+    display: none;
   }
   
   .admin-nav-list {
     display: flex;
+    flex-direction: row;
     overflow-x: auto;
     padding: 0 1rem;
+    gap: 0.5rem;
   }
   
-  .nav-item {
-    border-left: none;
-    border-bottom: 4px solid transparent;
-    padding: 0.5rem 1rem;
+  .admin-sidebar .nav-item {
     white-space: nowrap;
   }
-  
-  .nav-item.active {
-    border-left-color: transparent;
-    border-bottom-color: #21215b;
-  }
-  
+
   .admin-main-content {
     padding: 1rem;
   }

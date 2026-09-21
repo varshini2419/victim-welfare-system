@@ -15,7 +15,8 @@ const {
   getRequests,
   getRequestById,
   getActiveCounselors,
-  assignCounselorToRequest
+  assignCounselorToRequest,
+  getCounselorPatients
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { upload, uploadDocuments } = require('../middleware/uploadMiddleware');
@@ -37,6 +38,9 @@ router.put('/requests/:id/assign-counselor', assignCounselorToRequest);
 
 // Counselor management routes
 router.get('/counselors', getCounselors);
+
+// Connected patients of a counselor (admin supervision view)
+router.get('/counselors/:id/patients', getCounselorPatients);
 router.post('/counselors', upload.single('profileImage'), createCounselor);
 router.get('/counselors/pending', getPendingCounselors);
 router.get('/counselors/:id', getCounselorById);

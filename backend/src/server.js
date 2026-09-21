@@ -1,32 +1,23 @@
 require('dotenv').config();
 const app = require('./app');
-const connectDB = require('./config/database');
+const { connectDB } = require('./config/database');
+const { getJwtSecret } = require('./utils/jwt');
 
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
+    getJwtSecret();
     await connectDB();
 
-    // Auto-seed Admin for prototype
-    const User = require('./models/User');
-    const bcrypt = require('bcryptjs');
-    const adminEmail = process.env.ADMIN_EMAIL || 'varshini2419@gmail.com';
-    const adminExists = await User.findOne({ email: adminEmail });
-    if (!adminExists) {
-      const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || '1234', 10);
-      await User.create({
-        email: adminEmail,
-        passwordHash,
-        role: 'admin',
-        status: 'active',
-        state: 'Andhra Pradesh',
-        district: 'All'
-      });
-      console.log(`Auto-seeded Admin account: ${adminEmail}`);
+    if (process.env.SEED_DEMO_DATA !== 'false') {
+      console.log('[Server] Initializing seeder...');
+      const { seedAllAccounts } = require('./utils/seeder');
+      await seedAllAccounts();
+      console.log('[Server] Seeder finished.');
     }
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
     });
   } catch (error) {

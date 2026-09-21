@@ -1,0 +1,657 @@
+/* TrackApplication.css - Official Government Portal Aesthetic */
+
+.track-app-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+  color: #1e293b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* 1. HERO / INTRO SECTION */
+.track-hero-section {
+  background: linear-gradient(180deg, #edf5fd 0%, #f7faff 100%);
+  border-bottom: 1px solid #dce8f5;
+  padding: 2rem 0 1.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.track-hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  position: relative;
+  min-height: 155px;
+}
+
+.track-hero-content {
+  flex: 1;
+  max-width: 640px;
+  position: relative;
+  z-index: 2;
+}
+
+.track-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  margin-bottom: 0.85rem;
+}
+
+.track-breadcrumb-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: color 0.15s ease;
+}
+
+.track-breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.track-breadcrumb-sep {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.track-breadcrumb-current {
+  color: #475569;
+  font-weight: 500;
+}
+
+.track-hero-title {
+  font-size: 2.15rem;
+  font-weight: 800;
+  color: #0f2b5c;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.track-hero-subtitle {
+  font-size: 0.95rem;
+  color: #475569;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* Large Parliament Watermark Illustration - Anchored to bottom right */
+.track-hero-graphic-wrap {
+  position: absolute;
+  right: 1.5rem;
+  bottom: -1.75rem;
+  height: calc(100% + 1.75rem);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.track-hero-graphic {
+  height: clamp(140px, 16vw, 195px);
+  max-height: 205px;
+  width: auto;
+  max-width: min(520px, 46vw);
+  object-fit: contain;
+  object-position: bottom right;
+  mix-blend-mode: multiply;
+  opacity: 0.92;
+  filter: contrast(1.02) brightness(0.98);
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.2s ease, height 0.2s ease;
+}
+
+/* 2. MAIN TRACKING CONTENT */
+.track-main-body {
+  flex: 1;
+  padding: 2.25rem 0 4rem;
+}
+
+.track-main-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.track-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+/* LEFT COLUMN: REGISTRATION CARD */
+.track-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 2rem;
+}
+
+.track-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.track-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.track-icon-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.track-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f2b5c;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.track-card-desc {
+  font-size: 0.825rem;
+  color: #64748b;
+  margin: 0.2rem 0 0;
+}
+
+/* HORIZONTAL INPUT + BUTTON ROW */
+.track-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+  margin-bottom: 0.4rem;
+}
+
+.track-input-wrap {
+  flex: 1;
+  position: relative;
+}
+
+.track-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 0.04em;
+  color: #1e293b;
+  background-color: #ffffff;
+  text-transform: uppercase;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.track-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  outline: none;
+}
+
+.track-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 46px;
+  padding: 0 1.35rem;
+  background-color: #0f2b5c;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.track-btn:hover:not(:disabled) {
+  background-color: #0a1f42;
+}
+
+.track-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.track-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.track-example-text {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0.35rem 0 0;
+}
+
+.track-example-code {
+  font-family: 'Courier New', Courier, monospace;
+  color: #475569;
+  font-weight: 500;
+}
+
+/* ERROR ALERT */
+.track-error-alert {
+  margin-top: 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+  color: #991b1b;
+  padding: 0.85rem 1rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+/* STATUS RESULTS DISPLAY */
+.track-result-wrap {
+  margin-top: 1.5rem;
+}
+
+.track-status-box {
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid transparent;
+}
+
+.track-status-box.pending {
+  background-color: #fffbeb;
+  border-color: #fef08a;
+}
+
+.track-status-box.approved {
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.track-status-box.rejected {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+}
+
+.track-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.track-status-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f2b5c;
+  margin: 0;
+}
+
+.track-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.track-badge.pending {
+  background-color: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.track-badge.approved {
+  background-color: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.track-badge.rejected {
+  background-color: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.track-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.track-badge.pending .track-badge-dot { background-color: #d97706; }
+.track-badge.approved .track-badge-dot { background-color: #16a34a; }
+.track-badge.rejected .track-badge-dot { background-color: #dc2626; }
+
+.track-status-body-card {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.track-status-message-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+  margin: 0 0 0.25rem;
+}
+
+.track-status-message-desc {
+  font-size: 0.825rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.track-details-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.825rem;
+  margin-bottom: 0.5rem;
+}
+
+.track-details-label {
+  color: #64748b;
+}
+
+.track-details-value {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.track-login-action-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background-color: #059669;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  margin-top: 1rem;
+  transition: background-color 0.15s ease;
+}
+
+.track-login-action-btn:hover {
+  background-color: #047857;
+}
+
+/* 3. NEED HELP INFORMATION BOX */
+.track-help-panel {
+  background-color: #f0f7fd;
+  border: 1px solid #dce8f5;
+  border-radius: 6px;
+  padding: 1.35rem 1.5rem;
+  margin-top: 1.75rem;
+}
+
+.track-help-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0f2b5c;
+  margin-bottom: 0.75rem;
+}
+
+.track-help-icon {
+  width: 18px;
+  height: 18px;
+  color: #2563eb;
+}
+
+.track-help-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.825rem;
+  color: #334155;
+  line-height: 1.55;
+}
+
+.track-help-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.track-bullet {
+  color: #2563eb;
+  font-weight: bold;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.track-help-divider {
+  border: none;
+  border-top: 1px solid #dce8f5;
+  margin: 1.15rem 0 1rem;
+}
+
+.track-reapply-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0f2b5c;
+  margin: 0 0 0.35rem;
+}
+
+.track-reapply-desc {
+  font-size: 0.825rem;
+  color: #475569;
+  margin: 0 0 0.65rem;
+  line-height: 1.5;
+}
+
+.track-reapply-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 0.825rem;
+  text-decoration: none;
+}
+
+.track-reapply-link:hover {
+  text-decoration: underline;
+}
+
+/* 4. RIGHT COLUMN — QUICK SUPPORT CARD */
+.track-support-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 1.5rem;
+}
+
+.track-support-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f2b5c;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 0.25rem;
+}
+
+.track-support-header-icon {
+  width: 20px;
+  height: 20px;
+  color: #2563eb;
+}
+
+.track-support-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.95rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.track-support-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0.25rem;
+}
+
+.track-support-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.track-support-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.track-support-content {
+  flex: 1;
+}
+
+.track-support-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1e293b;
+  margin: 0;
+}
+
+.track-support-subtext {
+  font-size: 0.825rem;
+  color: #475569;
+  margin: 0.2rem 0 0;
+}
+
+.track-support-phone {
+  font-family: inherit;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.track-support-tag {
+  font-size: 0.725rem;
+  color: #64748b;
+  margin-left: 0.35rem;
+}
+
+.track-support-email {
+  color: #2563eb;
+  text-decoration: none;
+  display: inline-block;
+  margin-top: 0.15rem;
+  font-size: 0.825rem;
+}
+
+.track-support-email:hover {
+  text-decoration: underline;
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 992px) {
+  .track-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .track-hero-graphic-wrap {
+    right: 1rem;
+    opacity: 0.65;
+  }
+
+  .track-hero-graphic {
+    height: clamp(110px, 15vw, 150px);
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 640px) {
+  .track-hero-title {
+    font-size: 1.75rem;
+  }
+
+  .track-hero-graphic-wrap {
+    right: 0.5rem;
+    opacity: 0.35;
+  }
+
+  .track-hero-graphic {
+    height: 95px;
+    max-width: 240px;
+  }
+
+  .track-form {
+    flex-direction: column;
+  }
+
+  .track-btn {
+    width: 100%;
+  }
+
+  .track-card {
+    padding: 1.25rem;
+  }
+
+  .track-help-panel {
+    padding: 1rem;
+  }
+}

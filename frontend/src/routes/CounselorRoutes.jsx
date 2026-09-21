@@ -11,6 +11,7 @@ import Notifications from '../pages/counselor/Notifications';
 import ConsultationWorkspace from '../pages/counselor/ConsultationWorkspace';
 import CaseReport from '../pages/counselor/CaseReport';
 import Profile from '../pages/counselor/Profile';
+import WelfarePortal from '../pages/counselor/WelfarePortal';
 
 export default function CounselorRoutes() {
   return (
@@ -22,6 +23,9 @@ export default function CounselorRoutes() {
         <Route path="appointments" element={<Appointments />} />
         <Route path="victims" element={<MyVictims />} />
         <Route path="victims/:id" element={<VictimProfile />} />
+        <Route path="welfare-portal" element={<WelfarePortal />} />
+        <Route path="welfare-portal/:id" element={<WelfarePortal />} />
+        <Route path="welfare" element={<WelfarePortal />} />
         <Route path="follow-ups" element={<FollowUps />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="consultation/:id" element={<ConsultationWorkspace />} />

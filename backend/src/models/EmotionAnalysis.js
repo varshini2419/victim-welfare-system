@@ -41,7 +41,11 @@ const emotionAnalysisSchema = new mongoose.Schema({
     emotion: String,
     distressScore: Number,
     timestamp: { type: Date, default: Date.now }
-  }]
+  }],
+  isVoiceCallActive: {
+    type: Boolean,
+    default: false
+  }
 }, {
   timestamps: true
 });

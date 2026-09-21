@@ -1,4 +1,4 @@
-﻿/* CounselorLanding.css */
+/* CounselorLanding.css */
 :root {
   --counselor-navy: #0f172a;
   --counselor-deep-blue: #1a1a47;
@@ -344,11 +344,12 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
-  padding: 1.25rem 1rem;
+  padding: 1.15rem 1.15rem 1rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  justify-content: space-between;
+  align-items: stretch;
+  text-align: left;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -371,31 +372,103 @@
   box-shadow: 0 8px 20px rgba(13, 148, 136, 0.25);
 }
 
-.badge-icon-wrapper {
+/* Internal Layout: Icon Box | Vertical Divider | Text Group */
+.feature-card-main-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  flex: 1;
+}
+
+.feature-icon-box {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
-  background: rgba(13, 148, 136, 0.25);
-  border: 1px solid rgba(45, 212, 191, 0.5);
+  border-radius: 8px;
+  background: rgba(13, 148, 136, 0.15);
+  border: 1.5px solid rgba(45, 212, 191, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.35rem;
-  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+  color: #38bdf8;
+  margin-top: 0.1rem;
+}
+
+.feature-card-svg {
+  width: 22px;
+  height: 22px;
+  stroke: #38bdf8;
+}
+
+.feature-card-v-divider {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  margin: 0.15rem 0.15rem 0.15rem 0;
+}
+
+.feature-card-text-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .badge-card-title {
-  font-size: 0.875rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: #ffffff;
   line-height: 1.3;
-  margin-bottom: 0.35rem;
+  margin: 0 0 0.35rem;
+  letter-spacing: 0.01em;
 }
 
 .badge-card-desc {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   color: #94a3b8;
-  line-height: 1.35;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Horizontal Divider above View Details */
+.feature-card-h-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0.85rem 0 0.65rem;
+  width: 100%;
+}
+
+/* Bottom Action Area */
+.feature-card-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.feature-card-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #2dd4bf;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.feature-card-view-btn:hover {
+  color: #38bdf8;
+}
+
+.feature-card-view-btn .action-arrow {
+  font-size: 0.9rem;
+  transition: transform 0.2s ease;
+}
+
+.feature-card-view-btn:hover .action-arrow {
+  transform: translateX(3px);
 }
 
 /* Glowing Indicator Pills (Matching Screenshot) */
@@ -560,79 +633,268 @@
 }
 
 /* ==========================================================================
-   6. EMERGENCY HELPLINE BANNER & APP STORE BAR
+   6. EMERGENCY SUPPORT & HELPLINES SECTION (GOVERNMENT PORTAL SPEC)
    ========================================================================== */
-.emergency-helpline-bar {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+.emergency-support-section {
+  background-color: #061c38;
   color: #ffffff;
-  padding: 2rem 1.5rem;
-  border-top: 1px solid #334155;
+  padding: 2.25rem 2rem 2.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.helpline-container {
-  max-width: 1200px;
+.emergency-support-container {
+  max-width: 1240px;
   margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1.5rem;
 }
 
-.helpline-left {
+/* Header Area */
+.emergency-support-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
-.helpline-badge-icon {
-  width: 48px;
-  height: 48px;
-  background: #dc2626;
-  border-radius: 50%;
+.emergency-icon-box {
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid #10b981;
+  background-color: rgba(16, 185, 129, 0.08);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  flex-shrink: 0;
 }
 
-.helpline-text h4 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
+.emergency-header-svg {
+  width: 20px;
+  height: 20px;
 }
 
-.helpline-text p {
-  margin: 0.25rem 0 0;
-  font-size: 0.8125rem;
-  color: #94a3b8;
+.emergency-header-divider-vertical {
+  width: 2px;
+  height: 34px;
+  background-color: #10b981;
+  border-radius: 1px;
+  flex-shrink: 0;
 }
 
-.helpline-pills-row {
+.emergency-header-text {
   display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
 
-.helpline-pill-link {
+.emergency-header-title {
+  margin: 0;
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.emergency-header-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.emergency-green-divider {
+  height: 1px;
+  background: rgba(16, 185, 129, 0.35);
+  margin: 1.15rem 0 1.35rem;
+  width: 100%;
+}
+
+/* 4 Compact Cards Grid */
+.emergency-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.15rem;
+}
+
+.emergency-card {
+  background-color: #0b2545;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 1rem 1.05rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+
+.emergency-card:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+  background-color: #0d2c52;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.emergency-card.emergency-card-112 {
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.emergency-card.emergency-card-112:hover {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Card Top Area */
+.emergency-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.emergency-logo-wrap {
+  width: 48px;
+  height: 48px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.emergency-card-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.emergency-card-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.emergency-service-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emergency-service-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* Inner Divider */
+.emergency-card-inner-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  margin: 0.75rem 0;
+  width: 100%;
+}
+
+/* Card Bottom Area */
+.emergency-card-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.emergency-num-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.emergency-num-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.emergency-mini-phone-icon {
+  width: 12px;
+  height: 12px;
+  stroke: #94a3b8;
+  flex-shrink: 0;
+}
+
+.emergency-card-number {
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  margin-top: 0.1rem;
+  line-height: 1.1;
+}
+
+.emergency-card-112 .emergency-card-number {
+  color: #fca5a5;
+}
+
+/* Contact Button */
+.emergency-contact-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #f1f5f9;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   text-decoration: none;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.helpline-pill-link:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: #38bdf8;
-  color: #38bdf8;
+.emergency-contact-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #ffffff;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.contact-arrow {
+  font-size: 0.82rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.emergency-contact-btn:hover .contact-arrow {
+  transform: translateX(2px);
+}
+
+@media (max-width: 1024px) {
+  .emergency-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .emergency-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .emergency-support-section {
+    padding: 1.5rem 1rem;
+  }
 }
 
 /* App Store Badges (Matching Screenshot Footer Area) */

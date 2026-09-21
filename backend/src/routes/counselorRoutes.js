@@ -12,16 +12,42 @@ const {
   createAppointment,
   updateAppointmentStatus,
   getFollowUps,
+  getVictimChats,
+  getCounselorSummary,
+  searchCounselorCaseload,
+  getCounselorNotifications,
+  acknowledgeAlert,
 } = require('../controllers/counselorController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.use(protect);
+
+// ── Shared victim-inspection routes (counselor + admin supervision) ──
+// verifyCounselorVictimAccess authorizes admins, letting supervisors reuse the
+// exact same dashboard payloads as the assigned counselor. Registered before
+// the counselor-only guard below.
+router.get(
+  '/victims/:id/dashboard',
+  authorize('counselor', 'admin'),
+  getVictimMentalHealthDashboard
+);
+router.get(
+  '/victims/:id/chats',
+  authorize('counselor', 'admin'),
+  getVictimChats
+);
+
 router.use(authorize('counselor'));
+
+// ── Shell / cross-cutting ───────────────────────────────────────
+router.get('/summary', getCounselorSummary);
+router.get('/search', searchCounselorCaseload);
+router.get('/notifications', getCounselorNotifications);
+router.patch('/notifications/alerts/:id/acknowledge', acknowledgeAlert);
 
 router.get('/profile', getMyProfile);
 router.get('/victims', getMyVictims);
 router.get('/victims/:id', getVictimProfileById);
-router.get('/victims/:id/dashboard', getVictimMentalHealthDashboard);
 router.get('/follow-ups', getFollowUps);
 router.get('/assigned-cases', getAssignedCases);
 router.get('/assigned-cases/:id', getAssignedCaseById);

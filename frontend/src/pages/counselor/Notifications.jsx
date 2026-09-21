@@ -1,151 +1,137 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useShellSummary } from '../../context/ShellSummaryContext';
+import './Notifications.css';
 
-const notifications = [
-  {
-    id: 1,
-    type: 'Emergency',
-    title: 'SOS escalation triggered',
-    description: 'Aarohi S. reported a high-risk message and an emergency alert was sent to the counselor immediately.',
-    time: 'Just now',
-    unread: true,
-    accent: '#dc2626'
-  },
-  {
-    id: 2,
-    type: 'Appointment',
-    title: 'Consultation request raised',
-    description: 'Meera K. requested a counseling appointment for stress and sleep issues for today at 6:30 PM.',
-    time: '12 min ago',
-    unread: true,
-    accent: '#2563eb'
-  },
-  {
-    id: 3,
-    type: 'Follow-up',
-    title: 'Follow-up reminder scheduled',
-    description: 'Nandini P. has an inactive counseling status and a follow-up was scheduled for review.',
-    time: '1 hour ago',
-    unread: false,
-    accent: '#f59e0b'
-  },
-  {
-    id: 4,
-    type: 'Session',
-    title: 'Session note updated',
-    description: 'Rohit N. completed the latest session and the counselor summary was added to the victim report.',
-    time: '4 hours ago',
-    unread: false,
-    accent: '#16a34a'
-  },
-  {
-    id: 5,
-    type: 'Request',
-    title: 'Victim consultation request approved',
-    description: 'Aarohi S. was approved for a video consultation and a confirmation was sent to the victim.',
-    time: 'Yesterday',
-    unread: false,
-    accent: '#7c3aed'
-  }
-];
+const fmtWhen = (d) => {
+  if (!d) return '';
+  const date = new Date(d);
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 60 * 1000) return 'Just now';
+  if (diffMs < 60 * 60 * 1000) return `${Math.floor(diffMs / (60 * 1000))} min ago`;
+  if (diffMs < 24 * 60 * 60 * 1000) return `${Math.floor(diffMs / (60 * 60 * 1000))} h ago`;
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    + ', ' + date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+};
 
-const typeStyles = {
-  Emergency: { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
-  Appointment: { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
-  'Follow-up': { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
-  Session: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
-  Request: { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd' }
+const KIND_STYLES = {
+  alert: {
+    CRITICAL: { bg: '#fee2e2', text: '#b91c1c', border: '#fca5a5', label: 'CRITICAL' },
+    HIGH: { bg: '#ffedd5', text: '#c2410c', border: '#fdba74', label: 'HIGH' },
+    MEDIUM: { bg: '#fef3c7', text: '#b45309', border: '#fcd34d', label: 'MEDIUM' },
+    LOW: { bg: '#dcfce7', text: '#15803d', border: '#86efac', label: 'LOW' },
+  },
+  appointment: { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', label: 'REQUEST' },
 };
 
 export default function Notifications() {
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const navigate = useNavigate();
+  const { notifications, notificationsLoaded, refreshNotifications, acknowledgeAlert, summary } = useShellSummary();
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => n.kind === 'alert' ? n.status === 'NEW' : true).length,
+    [notifications]
+  );
+
+  const handleAcknowledge = async (item) => {
+    if (item.kind !== 'alert') return;
+    try {
+      await acknowledgeAlert(item.refId);
+    } catch {
+      // Acknowledge failures are non-fatal; the list refreshes on next poll
+    }
+  };
 
   return (
-    <div style={{ padding: '1.25rem', maxWidth: '1280px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '1.25rem' }}>
-        <p style={{ margin: 0, color: '#2563eb', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: '0.8rem' }}>Center</p>
-        <h1 style={{ margin: '0.25rem 0 0', fontSize: '2rem', fontWeight: 800, color: '#0f172a' }}>Notifications</h1>
-      </header>
-
-      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '1rem 1rem 0.5rem', boxShadow: '0 10px 24px rgba(15, 23, 42, 0.04)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
-            {unreadCount} unread notifications
-          </div>
+    <div className="notif-page">
+      <header className="notif-header">
+        <div>
+          <p className="notif-kicker">Center</p>
+          <h1 className="notif-title">Notifications</h1>
+        </div>
+        <div className="notif-header-actions">
+          <span className="notif-count-pill">
+            {unreadCount} unread
+          </span>
           <button
             type="button"
-            style={{
-              border: '1px solid #cbd5e1',
-              background: '#f8fafc',
-              color: '#0f172a',
-              borderRadius: '10px',
-              padding: '0.65rem 0.9rem',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
+            className="notif-refresh-btn"
+            onClick={refreshNotifications}
+            title="Reload notifications"
           >
-            Mark all as read
+            ⟳ Refresh
           </button>
         </div>
+      </header>
 
-        <div style={{ display: 'grid', gap: '0.9rem' }}>
-          {notifications.map((notification) => {
-            const typeStyle = typeStyles[notification.type] || typeStyles.Request;
+      <div className="notif-card">
+        {!notificationsLoaded ? (
+          <div className="notif-empty">Loading notifications…</div>
+        ) : notifications.length === 0 ? (
+          <div className="notif-empty">
+            ✓ You're all caught up — no alerts or pending requests.
+          </div>
+        ) : (
+          <div className="notif-list">
+            {notifications.map((n) => {
+              const styles = n.kind === 'alert'
+                ? (KIND_STYLES.alert[n.severity] || KIND_STYLES.alert.MEDIUM)
+                : KIND_STYLES.appointment;
+              const unread = n.kind === 'alert' ? n.status === 'NEW' : true;
+              const isCritical = n.kind === 'alert' && n.severity === 'CRITICAL' && n.status === 'NEW';
 
-            return (
-              <div
-                key={notification.id}
-                style={{
-                  background: notification.unread ? '#f8fafc' : '#ffffff',
-                  border: `1px solid ${notification.unread ? '#dbeafe' : '#e2e8f0'}`,
-                  borderLeft: `5px solid ${notification.accent}`,
-                  borderRadius: '14px',
-                  padding: '1rem 1.1rem',
-                  display: 'grid',
-                  gap: '0.7rem'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                  <span
-                    style={{
-                      background: typeStyle.bg,
-                      color: typeStyle.text,
-                      border: `1px solid ${typeStyle.border}`,
-                      borderRadius: '999px',
-                      padding: '0.3rem 0.7rem',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase'
-                    }}
-                  >
-                    {notification.type}
-                  </span>
-
-                  {notification.unread && (
-                    <span style={{ background: '#2563eb', color: '#fff', borderRadius: '999px', padding: '0.2rem 0.5rem', fontSize: '0.7rem', fontWeight: 700 }}>
-                      New
+              return (
+                <div
+                  key={n._id}
+                  className={`notif-item ${unread ? 'is-unread' : ''} ${isCritical ? 'is-critical' : ''}`}
+                >
+                  <div className="notif-item-top">
+                    <span className="notif-type-pill" style={{ background: styles.bg, color: styles.text, borderColor: styles.border }}>
+                      {styles.label}
                     </span>
-                  )}
-                </div>
+                    <span className="notif-when">{fmtWhen(n.createdAt)}</span>
+                  </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.2rem' }}>
-                      {notification.title}
-                    </div>
-                    <div style={{ lineHeight: 1.6, color: '#475569', fontSize: '0.92rem' }}>
-                      {notification.description}
-                    </div>
+                  <div className="notif-item-body">
+                    <div className="notif-item-title">{n.title}</div>
+                    <div className="notif-item-desc">{n.description}</div>
+                    {n.kind === 'alert' && n.callStatus && (
+                      <div className={`notif-call-status ${n.callStatus === 'FAILED' ? 'call-failed' : ''}`}>
+                        Automatic call: <strong>{n.callStatus}</strong>
+                        {n.callFailureReason ? ` (${n.callFailureReason})` : ''}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {notification.time}
+
+                  <div className="notif-item-actions">
+                    {n.kind === 'alert' && n.status === 'NEW' && (
+                      <button type="button" className="notif-ack-btn" onClick={() => handleAcknowledge(n)}>
+                        ✓ Acknowledge
+                      </button>
+                    )}
+                    {n.kind === 'alert' && n.status !== 'NEW' && (
+                      <span className="notif-acked-tag">Acknowledged</span>
+                    )}
+                    {n.kind === 'appointment' && (
+                      <button
+                        type="button"
+                        className="notif-review-btn"
+                        onClick={() => navigate('/counselor/requests')}
+                      >
+                        Review Request →
+                      </button>
+                    )}
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      <p className="notif-footnote">
+        Live counts across the portal: {summary.victims} victims · {summary.pendingRequests} pending requests · {summary.newAlerts} new alerts
+      </p>
     </div>
   );
 }

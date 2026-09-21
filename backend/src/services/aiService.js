@@ -1,10 +1,13 @@
 /**
- * AI Service — Unified Gemini-based Analysis & Response
+ * AI Service — Unified Analysis & Response
  * 
- * Single Gemini API call returns: sentiment, emotions, distress_score, crisis_flag, reply
+ * Single API call returns: sentiment, emotions, distress_score, crisis_flag, reply
  * Broadened keyword crisis safety net runs independently
  * Pre-approved safety messages override LLM on any crisis detection
+ * Legal RAG: retrieved provisions are injected so replies can cite real law
  */
+
+const { retrieveLegalContext } = require('./legalKnowledge');
 
 // ─────────────────────────────────────────────────────────────
 // 1. BROADENED CRISIS KEYWORD CHECK (runs without any API)
@@ -152,17 +155,22 @@ const getSafetyMessage = (langCode = 'en') => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// 3. GEMINI API CALL — Unified analysis + response
+// 3. LLM CALL — Unified analysis + response
 // ─────────────────────────────────────────────────────────────
-const AI_SYSTEM_PROMPT = `You are AAROHAN AI, an empathetic support assistant for crime victims under the SC/ST Prevention of Atrocities Act support program.
+const AI_SYSTEM_PROMPT = `You are AAROHAN AI, a compassionate support companion for crime victims in India, grounded in Indian law.
 
-For the victim's message, you must:
+For the victim's message you must:
 1. Detect the language of the input text.
 2. Classify overall sentiment (positive / neutral / negative) with a confidence score (0-1).
 3. Identify the top emotions present (choose from: fear, sadness, anger, joy, disgust, surprise, neutral) each with an approximate probability (0-1), summing to roughly 1.0.
 4. Compute a distress_score from 0 (calm/stable) to 100 (severe crisis), weighing negative sentiment, fear/sadness/anger intensity, any expression of hopelessness, self-harm ideation, suicidal intent, or being in immediate danger very heavily.
 5. Set crisis_flag to true if there is ANY indication — direct or indirect — of self-harm, suicidal thoughts, wanting to die, or immediate physical danger. Err strongly toward flagging when uncertain; false positives are far safer than false negatives here.
-6. Generate a warm, non-judgmental, brief (2-3 sentence) reply IN THE SAME LANGUAGE as the input. Never give medical, psychiatric, or legal advice. Never claim to be a licensed therapist. If crisis_flag is true, your reply must acknowledge their pain, state that support is being arranged immediately, and mention that help is available right now via the helpline.
+6. Generate a reply IN THE SAME LANGUAGE as the input following this STRICT structure:
+   a. FIRST, validate their feeling in one warm, natural sentence — like a person who truly gets it. FORBIDDEN cliches: "I am here for you", "I am here to listen", "I am so sorry you are going through this", "your feelings are valid".
+   b. THEN, empower them: if a law in LEGAL CONTEXT genuinely applies to their situation, tell them the law is on their side and they can act on it. Cite at most ONE provision, by name, using ONLY what LEGAL CONTEXT provides (e.g. "Article 21 of the Constitution guarantees your right to live with dignity" / "spreading lies like that is defamation, which is punishable"). NEVER invent or guess section numbers or Acts. If no legal context applies or you are unsure, skip the legal citation entirely.
+   c. END with one concrete next step (file a complaint, preserve screenshots, call a helpline, talk to your counselor) OR one gentle question. Never suggest illegal retaliation.
+   d. Keep the whole reply 2-3 short sentences, under 60 words. Vary your phrasing across turns.
+   e. If crisis_flag is true, calmly state that immediate help is being arranged right now (Emergency 112, Tele-MANAS 14416).
 
 Return ONLY valid JSON, no other text, in exactly this schema:
 {
@@ -174,134 +182,130 @@ Return ONLY valid JSON, no other text, in exactly this schema:
   "reply": "string in the detected language"
 }`;
 
+// Inject retrieved legal provisions so the model can only cite what we gave it.
+const buildSystemPrompt = (legalEntries) => {
+  if (!legalEntries || legalEntries.length === 0) {
+    return AI_SYSTEM_PROMPT;
+  }
+  const legalBlock = legalEntries
+    .map((l, i) => `[${i + 1}] ${l.title} (${l.citation}): ${l.text}`)
+    .join('\n');
+  return `${AI_SYSTEM_PROMPT}\n\nLEGAL CONTEXT (the ONLY provisions you may reference):\n${legalBlock}`;
+};
+
 const analyzeAndRespond = async (userText, conversationHistory = [], language = 'en') => {
   console.log(`\n[aiService] --- NEW MESSAGE RECEIVED ---`);
   console.log(`[aiService] Raw input text: "${userText}"`);
   console.log(`[aiService] User preferred language: ${language}`);
 
-  const aiServiceUrl = (process.env.AI_SERVICE_URL || 'http://127.0.0.1:5001').replace(/\/$/, '');
+  // Flexible override order to allow completely Custom OpenAI-Compatible APIs
+  let apiKey = process.env.AI_API_KEY || process.env.AI_PROVIDER_API_KEY || process.env.GROK_API_KEY;
 
-  // Preserve the existing Grok path as the Node-side fallback layer.
-  // This function now attempts the Flask AI service first and falls back to the existing Grok logic only if Flask is unavailable or malformed.
-  const flaskEndpoint = `${aiServiceUrl}/api/v1/chat`;
+  if (apiKey === 'your_api_key_here') {
+    apiKey = process.env.GROK_API_KEY; // Fallback for outdated .env
+  }
+
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('[aiService] No AI_API_KEY set — using smart fallback');
+    return getSmartFallback(userText, language);
+  }
+
+  let modelName = process.env.AI_MODEL || process.env.AI_MODEL_NAME || process.env.GROK_MODEL || 'gpt-4o-mini';
+
+  // Generic OpenAI-compatible endpoint. Perfect for LMStudio, OpenRouter, TogetherAI, custom local models, Grok, or OpenAI.
+  let url = process.env.AI_BASE_URL || process.env.AI_SERVICE_URL;
+
+  // Auto-fill fallback URLs ONLY if AI_BASE_URL isn't explicitly defined in .env
+  if (!url) {
+    if (modelName.toLowerCase().includes('grok') || (apiKey && apiKey.startsWith('xai-'))) {
+      url = 'https://api.x.ai/v1/chat/completions';
+    } else {
+      // Default to OpenAI if no custom URL or Grok key provided
+      url = 'https://api.openai.com/v1/chat/completions';
+    }
+  } else {
+    url = url.trim();
+    if (!url.endsWith('/chat/completions')) {
+      if (url.endsWith('/')) {
+        url = url + 'chat/completions';
+      } else {
+        url = url + '/chat/completions';
+      }
+    }
+  }
+
+  // Build conversation context (short: older turns barely help and cost latency)
+  let contextText = '';
+  if (conversationHistory.length > 0) {
+    const recentHistory = conversationHistory.slice(-4);
+    contextText = '\n\nRecent conversation context:\n' +
+      recentHistory.map(m => `${m.role === 'user' ? 'Victim' : 'AAROHAN'}: ${m.content}`).join('\n');
+  }
+
+  const userPrompt = `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`;
+
+  // Legal RAG: pull up to 2 matching provisions for this message (pure local scoring, ~0ms)
+  const legalEntries = retrieveLegalContext(
+    userText,
+    conversationHistory.slice(-2).map(m => m.content)
+  );
+
+  const requestBody = {
+    model: modelName,
+    messages: [
+      { role: 'system', content: buildSystemPrompt(legalEntries) },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: 0.6,
+    // Replies are capped at 2-3 short sentences; a larger budget only adds tail latency
+    max_tokens: 300,
+    response_format: { type: "json_object" }
+  };
 
   try {
-    const response = await fetch(flaskEndpoint, {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({
-        message: userText,
-        language,
-        conversation_history: conversationHistory,
-        context: {}
-      })
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errBody = await response.text().catch(() => '');
-      console.warn(`[aiService] Flask AI service returned non-OK: ${response.status} - ${errBody}`);
-      throw new Error(`Flask AI service error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (!data || typeof data.reply !== 'string') {
-      throw new Error('Flask AI service returned malformed payload');
-    }
-
-    const finalResponse = {
-      language_detected: data.language_detected || language,
-      sentiment: data.sentiment || { label: 'neutral', score: 0.5 },
-      emotions: Array.isArray(data.emotions) && data.emotions.length ? data.emotions : [{ label: 'neutral', score: 1.0 }],
-      distress_score: typeof data.distress_score === 'number' ? Math.min(100, Math.max(0, data.distress_score)) : 20,
-      crisis_flag: !!data.crisis_flag,
-      reply: data.reply,
-      source: data.provider || data.source || 'flask',
-      provider: data.provider || data.source || 'flask'
-    };
-
-    console.log(`[aiService] FLASK CALL SUCCESS. Reply Text:\n${finalResponse.reply}`);
-    return finalResponse;
-  } catch (flaskError) {
-    console.warn('[aiService] Flask AI service unavailable; falling back to existing Grok logic:', flaskError.message || flaskError);
-
-    const apiKey = process.env.GROK_API_KEY;
-    const model = process.env.GROK_MODEL || 'grok-beta';
-
-    if (!apiKey) {
-      console.warn('[aiService] No GROK_API_KEY set — using smart fallback');
+      console.error(`[aiService] API EXCEPTION: ${response.status} - ${errBody}`);
       return getSmartFallback(userText, language);
     }
 
-    const url = `https://api.x.ai/v1/chat/completions`;
+    const data = await response.json();
+    const rawText = data?.choices?.[0]?.message?.content;
 
-    // Build conversation context (last few turns for context)
-    let contextText = '';
-    if (conversationHistory.length > 0) {
-      const recentHistory = conversationHistory.slice(-6);
-      contextText = '\n\nRecent conversation context:\n' +
-        recentHistory.map(m => `${m.role === 'user' ? 'Victim' : 'AAROHAN'}: ${m.content}`).join('\n');
+    if (!rawText) {
+      console.error('[aiService] API EXCEPTION: Empty response choices', JSON.stringify(data));
+      return getSmartFallback(userText, language);
     }
 
-    const userPrompt = `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`;
+    let cleanText = rawText.trim();
+    if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    }
 
-    const requestBody = {
-      model: model,
-      messages: [
-        { role: 'system', content: AI_SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 1024,
-      response_format: { type: "text" }
-    };
-
-    console.log(`[aiService] EXACT PROMPT BEING SENT TO GROK:\n--- SYSTEM PROMPT ---\n${AI_SYSTEM_PROMPT}\n--- USER PROMPT ---\n${userPrompt}\n-------------------`);
+    // Sometimes LLMs return extra text before or after the JSON
+    const firstBrace = cleanText.indexOf('{');
+    const lastBrace = cleanText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+    }
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => '');
-        console.error(`[aiService] GROK API EXCEPTION: ${response.status} - ${errBody}`);
-        const fallbackResponse = getSmartFallback(userText, language);
-        console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
-        return fallbackResponse;
-      }
-
-      const data = await response.json();
-
-      const rawText = data?.choices?.[0]?.message?.content;
-      if (!rawText) {
-        console.error('[aiService] GROK API EXCEPTION: Empty response choices', JSON.stringify(data));
-        const fallbackResponse = getSmartFallback(userText, language);
-        console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
-        return fallbackResponse;
-      }
-
-      console.log(`[aiService] GROK CALL SUCCESS. Reply Text:\n${rawText}`);
-
-      let cleanText = rawText.trim();
-      if (cleanText.startsWith('```')) {
-        cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-      }
-
       const result = JSON.parse(cleanText);
-
       const finalResponse = {
         language_detected: result.language_detected || language,
         sentiment: result.sentiment || { label: 'neutral', score: 0.5 },
@@ -309,22 +313,22 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
         distress_score: typeof result.distress_score === 'number' ? Math.min(100, Math.max(0, result.distress_score)) : 20,
         crisis_flag: !!result.crisis_flag,
         reply: result.reply || getSmartFallback(userText, language).reply,
-        source: 'grok'
+        source: 'api'
       };
-
-      console.log(`[aiService] FULL RESPONSE PAYLOAD (Grok):`, JSON.stringify(finalResponse));
+      console.log(`[aiService] API CALL SUCCESS. Reply Text:\n${finalResponse.reply}`);
       return finalResponse;
-
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        console.error('[aiService] GROK API EXCEPTION: Request timed out after 20s');
-      } else {
-        console.error('[aiService] GROK API EXCEPTION:', error.message);
-      }
-      const fallbackResponse = getSmartFallback(userText, language);
-      console.log(`[aiService] FULL RESPONSE PAYLOAD (Fallback):`, JSON.stringify(fallbackResponse));
-      return fallbackResponse;
+    } catch (parseErr) {
+      console.error('[aiService] Failed to parse API response as JSON:', rawText);
+      console.error('[aiService] JSON Parse Error:', parseErr.message);
+      return getSmartFallback(userText, language);
     }
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('[aiService] API EXCEPTION: Request timed out after 20s');
+    } else {
+      console.error('[aiService] API call failed:', error.message);
+    }
+    return getSmartFallback(userText, language);
   }
 };
 
@@ -467,6 +471,62 @@ const getSmartFallback = (userText, language = 'en') => {
   };
 };
 
+const generatePatientSummary = async (messagesText) => {
+  if (!messagesText) return "No sufficient data to generate summary.";
+
+  try {
+    let url = process.env.AI_BASE_URL;
+    if (url && !url.endsWith('/v1/chat/completions') && !url.endsWith('/chat/completions')) {
+      url = url.replace(/\/+$/, '') + '/chat/completions';
+    }
+    const apiKey = process.env.AI_API_KEY;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: process.env.AI_MODEL || 'claude',
+        messages: [
+          { role: 'system', content: "You are an expert clinical psychologist summarizing a patient's recent text messages for their counselor.\nBased on the messages sent by the patient today, write EXACTLY TWO short sentences: one on what they are going through emotionally, one on what it means for their care. Plain, conversational, empathetic — no jargon, no bullet points. Example: \"Priya is being blamed at work for something she did not do and feels isolated. She needs early legal guidance and a follow-up session within the week.\"" },
+          { role: 'user', content: `Patient's messages:\n${messagesText}` }
+        ],
+        temperature: 0.3,
+        max_tokens: 120
+      }),
+      // Summary runs in the background — allow a generous window for slow proxies
+      signal: AbortSignal.timeout(20000)
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(`API Error: ${response.status} - ${JSON.stringify(data)}`);
+    }
+    let content = data.choices[0].message.content;
+    if (typeof content === 'object' && content !== null) {
+      content = content.text || content.summary || content.aiSummary || JSON.stringify(content);
+    } else if (typeof content === 'string') {
+      content = content.trim();
+      if (content.startsWith('{') && content.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(content);
+          content = parsed.aiSummary || parsed.summary || parsed.patientProfile?.currentCondition || content;
+          if (typeof content === 'object') {
+            content = JSON.stringify(content);
+          }
+        } catch (e) {
+          // Keep as string
+        }
+      }
+    }
+    return typeof content === 'string' ? content : String(content);
+  } catch (error) {
+    console.error('Error generating patient summary:', error.message);
+    throw error;
+  }
+};
+
 // ─────────────────────────────────────────────────────────────
 // EXPORTS
 // ─────────────────────────────────────────────────────────────
@@ -474,5 +534,6 @@ module.exports = {
   analyzeAndRespond,
   getKeywordCrisisFlag,
   getSafetyMessage,
-  getSmartFallback
+  getSmartFallback,
+  generatePatientSummary
 };

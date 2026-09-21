@@ -134,10 +134,10 @@ export default function AdminVictims() {
 
                   <div style={{ padding: '1rem 1.5rem', backgroundColor: '#f9fafb', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '0.5rem' }}>
                     <Link 
-                      to={`/admin/victims/${v._id}`} 
+                      to={`/admin/victims/${v._id}/manage`} 
                       style={{ width: '100%', textAlign: 'center', backgroundColor: '#2563eb', border: '1px solid #2563eb', color: 'white', textDecoration: 'none', padding: '0.5rem', borderRadius: '4px', fontSize: '0.875rem', fontWeight: '500' }}
                     >
-                      VIEW REQUEST
+                      REVIEW REQUEST
                     </Link>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage, LanguageToggle } from '../../context/LanguageContext';
+import GeminiLiveVoice from '../../components/common/GeminiLiveVoice';
 import './Chatbot.css';
 
 const LANGUAGES = [
@@ -42,6 +43,7 @@ export default function Chatbot() {
   const [speakingMsgId, setSpeakingMsgId] = useState(null);
   const [speechNotice, setSpeechNotice] = useState('');
   const [latestAnalysis, setLatestAnalysis] = useState(null);
+  const [showLiveVoice, setShowLiveVoice] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -242,7 +244,9 @@ export default function Chatbot() {
     fetchSessions();
   }, []);
 
-  // 2. Fetch Messages when activeSessionId changes
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // 2. Fetch Messages when activeSessionId or refreshTrigger changes
   useEffect(() => {
     if (!activeSessionId) return;
     const fetchMessages = async () => {
@@ -264,6 +268,25 @@ export default function Chatbot() {
       }
     };
     fetchMessages();
+  }, [activeSessionId, refreshTrigger]);
+
+  // Refresh messages shortly after voice call ends to get the final summary
+  useEffect(() => {
+    if (!showLiveVoice && activeSessionId) {
+      const timer = setTimeout(() => {
+        setRefreshTrigger(prev => prev + 1);
+      }, 1500); // 1.5s delay to allow backend to finish saving the voice-end log
+      return () => clearTimeout(timer);
+    }
+  }, [showLiveVoice, activeSessionId]);
+
+  // Refresh messages periodically to catch external updates (e.g., from voice call)
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const interval = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 10000); // Poll every 10s to get new backend summaries if they exist
+    return () => clearInterval(interval);
   }, [activeSessionId]);
 
   const scrollToBottom = () => {
@@ -485,9 +508,23 @@ export default function Chatbot() {
             {autoTts ? t('audioResponseOn') : t('audioResponseOff')}
           </button>
 
+          <button
+            className={`btn-action-pill ${showLiveVoice ? 'active' : ''}`}
+            onClick={() => setShowLiveVoice(!showLiveVoice)}
+            style={{ backgroundColor: showLiveVoice ? '#ef4444' : '#10b981', color: '#fff', border: 'none' }}
+          >
+            {showLiveVoice ? 'End Voice Call' : 'Start Voice Call'}
+          </button>
+
           <Link to="/victim/dashboard" className="chatbot-back-link">{t('dashboardBack')}</Link>
         </div>
       </div>
+      
+      {showLiveVoice && (
+        <div style={{ padding: '0 1rem', background: '#fff', borderBottom: '1px solid #e2e8f0' }}>
+          <GeminiLiveVoice language={LANGUAGES.find(l => l.code === selectedLang)?.label} />
+        </div>
+      )}
 
       <div className="chat-layout">
         {/* Sidebar */}

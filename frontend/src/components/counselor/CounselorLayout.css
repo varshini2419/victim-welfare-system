@@ -460,70 +460,154 @@
 }
 
 /* ── SIDEBAR ────────────────────────────────────────────────── */
+/* ── SIDEBAR (new government design, mirrors admin portal) ──── */
 .counselor-sidebar {
-  width: 232px;
+  width: 270px;
   flex-shrink: 0;
-  background-color: #ffffff;
-  border-right: 1px solid var(--line);
+  background: linear-gradient(180deg, #02173e 0%, #031c4b 45%, #02163a 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 64px;
   height: calc(100vh - 64px);
   overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  z-index: 5;
 }
 
-.sidebar-heading {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: var(--ink-400);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 1.25rem 1.25rem 0.5rem;
-  margin: 0;
+/* 1. TOP BRANDING SECTION */
+.counselor-sidebar-branding {
+  padding: 1.35rem 1rem 0;
+  width: 100%;
+  flex-shrink: 0;
+  position: relative;
 }
 
-.counselor-nav-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.counselor-sidebar-brand-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  color: #ffffff !important;
 }
 
-.nav-item {
+.counselor-sidebar-brand-link:visited,
+.counselor-sidebar-brand-link:active,
+.counselor-sidebar-brand-link:hover,
+.counselor-sidebar-brand-link:focus {
+  color: #ffffff !important;
+  text-decoration: none;
+  opacity: 0.95;
+}
+
+.counselor-brand-title {
   display: flex;
   align-items: center;
-  margin: 0.15rem 0.6rem;
-  padding: 0.6rem 0.75rem;
-  color: var(--ink-700);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.87rem;
-  border-radius: var(--radius-sm);
-  transition: background 0.15s ease, color 0.15s ease;
-  border-left: 3px solid transparent;
-}
-
-.nav-item:hover {
-  background-color: #f5f7fb;
-  color: var(--ink-900);
-}
-
-.nav-item.active {
-  background-color: var(--blue-50);
-  color: var(--blue-700);
-  font-weight: 600;
-  border-left-color: var(--blue-600);
-}
-
-.nav-icon {
-  font-size: 1rem;
-  margin-right: 0.75rem;
-  width: 22px;
+  justify-content: center;
+  font-size: 1.22rem;
+  font-weight: 700;
+  color: #ffffff !important;
+  line-height: 1.25;
   text-align: center;
+  letter-spacing: 0.015em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.counselor-brand-slogan {
+  font-size: 0.78rem;
+  font-weight: 400;
+  font-style: italic;
+  color: #cbd5e1;
+  text-align: center;
+  margin-top: 0.35rem;
+  letter-spacing: 0.02em;
+}
+
+.counselor-brand-tricolor-accent {
+  width: 68px;
+  height: 2.5px;
+  background: linear-gradient(90deg, #ff9933 0%, #ffffff 50%, #138808 100%);
+  border-radius: 999px;
+  margin: 0.65rem auto 0;
+  box-shadow: 0 0 6px rgba(255, 153, 51, 0.45);
+}
+
+/* 2. CLEAR SPACING below the accent */
+.counselor-sidebar-spacing {
+  height: 1.15rem;
+  width: 100%;
   flex-shrink: 0;
 }
 
-.nav-text-container {
+/* 3. NAVIGATION SECTION */
+.counselor-sidebar-nav-container {
+  width: 100%;
+  padding: 0 0.9rem;
+  flex-shrink: 0;
+}
+
+.counselor-sidebar .counselor-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.counselor-sidebar .nav-item {
+  display: flex;
+  align-items: center;
+  padding: 0.68rem 0.95rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.86rem;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.counselor-sidebar .nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.13);
+  color: #ffffff;
+  transform: translateX(3px);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.counselor-sidebar .nav-item.active {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.95) 0%, rgba(37, 99, 235, 0.98) 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), 0 0 12px rgba(37, 99, 235, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-left: 3.5px solid #ff9933;
+}
+
+.counselor-sidebar .nav-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 0.75rem;
+  flex-shrink: 0;
+}
+
+.counselor-sidebar .counselor-nav-icon {
+  width: 19px;
+  height: 19px;
+  color: currentColor;
+  transition: color 0.18s ease;
+}
+
+.counselor-sidebar .nav-text-container {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -532,21 +616,22 @@
   min-width: 0;
 }
 
-.nav-label-primary {
-  font-size: 0.87rem;
-  line-height: 1.3;
+.counselor-sidebar .nav-label-primary {
+  font-size: 0.86rem;
+  line-height: 1.25;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.nav-label-secondary {
-  display: none;
-}
-
-.nav-item-badge {
+/* Live badges (dark theme variant) */
+.counselor-sidebar .nav-item-badge {
   min-width: 19px;
   height: 19px;
   padding: 0 5px;
   border-radius: 999px;
-  background: var(--red-600);
+  background: #ef4444;
   color: #fff;
   font-size: 0.66rem;
   font-weight: 700;
@@ -554,42 +639,38 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
 }
 
-.nav-item-badge.badge-neutral {
-  background: #e2e8f0;
-  color: var(--ink-700);
+.counselor-sidebar .nav-item-badge.badge-neutral {
+  background: rgba(255, 255, 255, 0.18);
+  color: #e2e8f0;
+  box-shadow: none;
 }
 
-/* Sidebar bottom: quote + help card */
-.sidebar-bottom {
-  margin-top: auto;
-  padding: 1rem 1rem 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.sidebar-livecall-note {
-  margin: 0.75rem 0.75rem 0;
+/* Live-call note (dark theme) */
+.counselor-sidebar .sidebar-livecall-note {
+  margin: 0.75rem 0.9rem 0;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0.55rem 0.75rem;
-  border-radius: var(--radius-sm);
-  background: var(--red-50);
-  border: 1px solid #fecaca;
-  color: var(--red-700);
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
   font-size: 0.76rem;
   font-weight: 700;
   text-decoration: none;
+  flex-shrink: 0;
 }
 
-.sidebar-livecall-note .live-dot {
+.counselor-sidebar .sidebar-livecall-note .live-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--red-600);
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
   animation: nav-pulse 1.6s ease-in-out infinite;
 }
 
@@ -598,61 +679,18 @@
   50% { opacity: 0.3; }
 }
 
-.sidebar-sync-note {
-  font-size: 0.66rem;
-  color: var(--ink-400);
-  text-align: center;
+/* 4. FLEXIBLE EMPTY SPACE */
+.counselor-sidebar-flexible-space {
+  flex: 1;
+  min-height: 14px;
 }
 
-.sidebar-quote {
-  text-align: center;
-  color: var(--ink-400);
-  font-size: 0.72rem;
-  font-style: italic;
-  line-height: 1.5;
-  padding: 0 0.35rem;
-}
-
-.sidebar-quote .quote-leaf {
-  display: block;
-  font-size: 1.5rem;
-  margin-bottom: 0.3rem;
-  font-style: normal;
-}
-
-.sidebar-help-card {
-  background: var(--blue-50);
-  border: 1px solid #d3e2fb;
-  border-radius: var(--radius-md);
-  padding: 0.75rem 0.85rem;
-  display: flex;
-  gap: 0.65rem;
-  align-items: flex-start;
-}
-
-.sidebar-help-card .help-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #ffffff;
-  border: 1px solid #d3e2fb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
+/* 5. BOTTOM GOVERNMENT / DECORATIVE SECTION */
+.counselor-sidebar-bottom-section {
+  height: 145px;
+  width: 100%;
+  background: url('/images/counselor-sidebar-bg.png') no-repeat bottom center / 270px auto;
   flex-shrink: 0;
-}
-
-.sidebar-help-card .help-title {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--ink-900);
-}
-
-.sidebar-help-card .help-sub {
-  font-size: 0.7rem;
-  color: var(--ink-500);
-  margin-top: 1px;
 }
 
 /* ── MAIN CONTENT ───────────────────────────────────────────── */
@@ -676,7 +714,7 @@
 
 @media (max-width: 1024px) {
   .counselor-sidebar {
-    width: 200px;
+    width: 220px;
   }
   .nav-search {
     display: none;
@@ -718,8 +756,11 @@
     border-bottom: 1px solid var(--line);
     padding-bottom: 0.5rem;
   }
-  .sidebar-heading,
-  .sidebar-bottom {
+  .counselor-sidebar-branding,
+  .counselor-sidebar-spacing,
+  .counselor-sidebar-flexible-space,
+  .counselor-sidebar-bottom-section,
+  .counselor-sidebar .sidebar-livecall-note {
     display: none;
   }
   .counselor-nav-list {

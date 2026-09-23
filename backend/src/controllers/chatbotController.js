@@ -65,6 +65,30 @@ const sendMessage = asyncHandler(async (req, res) => {
   const sessionId = req.params.id;
   const victimId = req.user._id;
 
+  const isStream = req.query.stream === 'true' || req.body.stream === true || req.headers['accept'] === 'text/event-stream';
+
+  if (isStream) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    if (res.flushHeaders) res.flushHeaders();
+
+    const onChunk = (textChunk) => {
+      res.write(`data: ${JSON.stringify({ type: 'chunk', text: textChunk })}\n\n`);
+    };
+
+    try {
+      const { userMessage, aiMessage, analysis } = await chatbotService.processVictimMessageStream(sessionId, victimId, content, language || 'English', onChunk);
+      res.write(`data: ${JSON.stringify({ type: 'done', data: aiMessage, userMessage, analysis })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error('[chatbotController] Stream error:', error.message);
+      res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+      res.end();
+    }
+    return;
+  }
+
   try {
     const { userMessage, aiMessage, analysis } = await chatbotService.processVictimMessage(sessionId, victimId, content, language || 'English');
     
@@ -79,6 +103,7 @@ const sendMessage = asyncHandler(async (req, res) => {
     throw new Error(error.message || 'Server Error');
   }
 });
+
 
 // @desc    Archive a chat session
 // @route   DELETE /api/v1/chatbot/sessions/:id

@@ -9,6 +9,11 @@ export default defineConfig({
     port: 5180,
     strictPort: true,
     proxy: {
+      '/api/v1/voice/realtime': {
+        target: 'http://localhost:5000',
+        ws: true,
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,

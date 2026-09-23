@@ -8,12 +8,12 @@ const WORKLET_CODE = `
 class PCMProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-  this.bufferSize = 2048;
-  this.buffer = new Float32Array(this.bufferSize);
-  this.index = 0;
-}
+    this.bufferSize = 1024;
+    this.buffer = new Float32Array(this.bufferSize);
+    this.index = 0;
+  }
 
-process(inputs) {
+  process(inputs) {
     const input = inputs[0];
     if (!input || input.length === 0 || !input[0]) return true;
     const channel = input[0];
@@ -29,7 +29,11 @@ process(inputs) {
     return true;
   }
 }
-registerProcessor('pcm-processor', PCMProcessor);
+if (typeof registerProcessor === 'function') {
+  try {
+    registerProcessor('pcm-processor', PCMProcessor);
+  } catch (e) {}
+}
 `;
 
 // Native-audio Live sessions are dropped by the server intermittently with
@@ -38,14 +42,26 @@ registerProcessor('pcm-processor', PCMProcessor);
 const MAX_RECONNECT_ATTEMPTS = 4;
 
 // Playback jitter buffer: chunks are scheduled at least this far ahead of
-// "now" so small network hiccups don't cause audible gaps. Adds <100ms to
+// "now" so small network hiccups don't cause audible gaps. Adds ~100ms to
 // the very first sound of a response, nothing to subsequent chunks.
-const PLAYBACK_PREBUFFER_S = 0.08;
+const PLAYBACK_PREBUFFER_S = 0.10;
 
-export default function useGeminiLive(apiKey, customInstruction = "") {
+export default function useGeminiLive(apiKey, customInstruction = "", language = "en-IN") {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Unified State Machine:
+  // DISCONNECTED | CONNECTING | CONNECTED_IDLE | USER_SPEAKING | WAITING_FOR_GEMINI | AI_SPEAKING | INTERRUPTED
+  const voiceStateRef = useRef('DISCONNECTED');
+  const isSpeakingRef = useRef(false);
+
+  const apiKeyRef = useRef(apiKey);
+  apiKeyRef.current = apiKey;
+  const customInstructionRef = useRef(customInstruction);
+  customInstructionRef.current = customInstruction;
+  const languageRef = useRef(language);
+  languageRef.current = language;
 
   const sessionRef = useRef(null);
   const isConnectingRef = useRef(false);
@@ -63,9 +79,21 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
   const reconnectTimerRef = useRef(null);
   const shouldReconnectRef = useRef(false);
 
+  const silenceTimerRef = useRef(null);
+  const userSpeechTimerRef = useRef(null);
+  const lastMeaningfulSpeechRef = useRef(0);
+
+  // Telemetry ref
+  const diagRef = useRef({
+    turn: 1,
+    speechStart: null,
+    speechEnd: null,
+    firstAudioReceived: null,
+    firstAudioScheduled: null,
+    isActiveTurn: false,
+  });
+
   const base64Encode = (bytes) => {
-    // Chunked conversion: String.fromCharCode per byte is O(n^2) string churn
-    // and can blow the arg limit on large chunks; slicing keeps it linear.
     const len = bytes.byteLength;
     const chunks = [];
     const CHUNK = 0x8000;
@@ -98,6 +126,38 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
     };
   };
 
+  const isNewTurnRef = useRef(true);
+  const setupCompleteRef = useRef(false);
+  const greetingSentRef = useRef(false);
+  const unlockListenersRef = useRef([]);
+
+  // Reset silence / check-in timer only when genuinely in CONNECTED_IDLE
+  const resetSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (voiceStateRef.current === 'CONNECTED_IDLE' && !isSpeakingRef.current) {
+      silenceTimerRef.current = setTimeout(() => {
+        silenceTimerRef.current = null;
+        const activeSession = sessionRef.current;
+        if (voiceStateRef.current === 'CONNECTED_IDLE' && !isSpeakingRef.current && activeSession) {
+          try {
+            activeSession.sendClientContent({
+              turns: [{
+                role: 'user',
+                parts: [{ text: "System check: The user has been quiet for a while. Please gently ask if they are still there and if they need any further help, in their preferred language." }]
+              }],
+              turnComplete: true
+            });
+          } catch (e) {
+            console.error("[AROHAN_LIVE] Error sending silence check:", e);
+          }
+        }
+      }, 25000);
+    }
+  }, []);
+
   const playPCMChunk = async (base64PCM) => {
     try {
       const bytes = base64Decode(base64PCM);
@@ -106,12 +166,24 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
       for (let i = 0; i < int16Data.length; i++) {
         float32Data[i] = int16Data[i] / 32768.0;
       }
+      console.log('[AROHAN_LIVE] AUDIO_DECODED', float32Data.length, 'samples');
 
       let ctx = playbackContextRef.current;
-      if (!ctx || ctx.state === 'closed') return;
+      if (!ctx || ctx.state === 'closed') {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        ctx = new AudioContextClass();
+        playbackContextRef.current = ctx;
+      }
+
+      console.log('[AROHAN_LIVE] PLAYBACK_CONTEXT_BEFORE', 'state=' + ctx.state, 'currentTime=' + ctx.currentTime.toFixed(3), 'sampleRate=' + ctx.sampleRate);
 
       if (ctx.state === 'suspended') {
-        await ctx.resume();
+        try {
+          await ctx.resume();
+          console.log('[AROHAN_LIVE] PLAYBACK_CONTEXT_RESUMED', 'state=' + ctx.state);
+        } catch (e) {
+          console.warn("[useGeminiLive] Playback context resume deferred:", e);
+        }
       }
 
       const buffer = ctx.createBuffer(1, float32Data.length, 24000);
@@ -125,36 +197,130 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
         activeAudioNodesRef.current = activeAudioNodesRef.current.filter((n) => n !== source);
         if (activeAudioNodesRef.current.length === 0) {
           setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          if (voiceStateRef.current === 'AI_SPEAKING' || voiceStateRef.current === 'INTERRUPTED') {
+            voiceStateRef.current = 'CONNECTED_IDLE';
+            resetSilenceTimer();
+          }
         }
       };
 
       activeAudioNodesRef.current.push(source);
       setIsSpeaking(true);
+      isSpeakingRef.current = true;
+      voiceStateRef.current = 'AI_SPEAKING';
 
       const now = ctx.currentTime;
-      if (nextPlayTimeRef.current < now + PLAYBACK_PREBUFFER_S) {
+      if (isNewTurnRef.current || nextPlayTimeRef.current < now) {
         nextPlayTimeRef.current = now + PLAYBACK_PREBUFFER_S;
+        isNewTurnRef.current = false;
       }
+      console.log('[AROHAN_LIVE] AUDIO_SCHEDULED', 'startAt=' + nextPlayTimeRef.current.toFixed(3), 'now=' + now.toFixed(3), 'duration=' + buffer.duration.toFixed(3));
       source.start(nextPlayTimeRef.current);
+      console.log('[AROHAN_LIVE] AUDIO_STARTED');
       nextPlayTimeRef.current += buffer.duration;
+
+      // Telemetry log for first scheduled chunk of turn
+      if (diagRef.current.isActiveTurn && diagRef.current.firstAudioReceived && !diagRef.current.firstAudioScheduled) {
+        diagRef.current.firstAudioScheduled = performance.now();
+        const d = diagRef.current;
+        const speechDur = d.speechEnd && d.speechStart ? (d.speechEnd - d.speechStart) : 0;
+        const ue_to_fa = d.speechEnd ? (d.firstAudioReceived - d.speechEnd) : 0;
+        const fa_to_sch = d.firstAudioScheduled - d.firstAudioReceived;
+        const total = d.speechEnd ? (d.firstAudioScheduled - d.speechEnd) : 0;
+
+        console.log(`\n[VOICE_LATENCY] turn=${d.turn}`);
+        console.log(`user_speech_start=${d.speechStart ? d.speechStart.toFixed(0) : 'N/A'} ms`);
+        console.log(`user_speech_end=${d.speechEnd ? d.speechEnd.toFixed(0) : 'N/A'} ms (duration: ${speechDur.toFixed(0)} ms)`);
+        console.log(`first_audio_received=${d.firstAudioReceived.toFixed(0)} ms`);
+        console.log(`first_audio_scheduled=${d.firstAudioScheduled.toFixed(0)} ms`);
+        console.log(`total_turn_latency=${total.toFixed(0)} ms\n`);
+
+        diagRef.current.isActiveTurn = false;
+        diagRef.current.turn += 1;
+        diagRef.current.speechStart = null;
+        diagRef.current.speechEnd = null;
+        diagRef.current.firstAudioReceived = null;
+        diagRef.current.firstAudioScheduled = null;
+      }
     } catch (e) {
-      console.error("Playback error:", e);
+      console.error("[AROHAN_LIVE] ERROR in playPCMChunk:", e);
     }
   };
 
-  // Full teardown + end-of-call logging. Stable ([] deps) so it can be
-  // referenced from connect and its callbacks safely.
+  const sendInitialGreetingIfReady = useCallback(() => {
+    const activeSession = sessionRef.current;
+
+    if (!activeSession) {
+      console.log("[AROHAN_LIVE] Greeting waiting for session assignment");
+      return false;
+    }
+
+    if (!setupCompleteRef.current) {
+      console.log("[AROHAN_LIVE] Greeting waiting for setupComplete");
+      return false;
+    }
+
+    if (greetingSentRef.current) {
+      return true;
+    }
+
+    try {
+      activeSession.sendClientContent({
+        turns: [{
+          role: "user",
+          parts: [{
+            text: "System trigger: The user has just connected to the voice call. Please speak first, greet them warmly as their counselor, and ask how they are feeling today."
+          }]
+        }],
+        turnComplete: true
+      });
+
+      greetingSentRef.current = true;
+
+      console.log("[AROHAN_LIVE] GREETING_SENT");
+
+      return true;
+    } catch (error) {
+      console.error("[AROHAN_LIVE] GREETING_SEND_FAILED", error);
+      return false;
+    }
+  }, []);
+
+  // Full teardown + end-of-call logging
   const disconnect = useCallback(() => {
     isConnectingRef.current = false;
     connectionIdRef.current = 0;
     shouldReconnectRef.current = false;
     resumptionHandleRef.current = null;
+    voiceStateRef.current = 'DISCONNECTED';
+    isNewTurnRef.current = true;
+    greetingSentRef.current = false;
+    setupCompleteRef.current = false;
+
+    if (unlockListenersRef.current.length > 0) {
+      unlockListenersRef.current.forEach(({ type, fn }) => {
+        window.removeEventListener(type, fn);
+      });
+      unlockListenersRef.current = [];
+    }
+
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (userSpeechTimerRef.current) {
+      clearTimeout(userSpeechTimerRef.current);
+      userSpeechTimerRef.current = null;
+    }
+
     setIsConnected(false);
     setIsSpeaking(false);
+    isSpeakingRef.current = false;
 
     activeAudioNodesRef.current.forEach(node => {
       try { node.stop(); } catch (e) {}
@@ -223,7 +389,8 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
   }, []);
 
   const connect = useCallback(async ({ isReconnect = false } = {}) => {
-    if (!apiKey) {
+    const currentApiKey = apiKeyRef.current;
+    if (!currentApiKey) {
       setError("Please provide a Gemini API key.");
       return;
     }
@@ -237,20 +404,28 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
     const myConnectionId = Date.now() + Math.random();
     connectionIdRef.current = myConnectionId;
     shouldReconnectRef.current = true;
+    voiceStateRef.current = 'CONNECTING';
+
     if (!isReconnect) {
       reconnectAttemptsRef.current = 0;
-      // A fresh call must NOT resume the previous session's context.
       resumptionHandleRef.current = null;
+      greetingSentRef.current = false;
     }
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (userSpeechTimerRef.current) {
+      clearTimeout(userSpeechTimerRef.current);
+      userSpeechTimerRef.current = null;
+    }
 
     const ctxCapture = { input: null, playback: null };
 
-    // Tear down per-connection audio resources. Keeps call state so a
-    // reconnect can resume logging under the same call.
     const teardownConnection = () => {
       activeAudioNodesRef.current.forEach(node => {
         try { node.stop(); } catch (e) {}
@@ -276,12 +451,24 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
       playbackContextRef.current = null;
       sessionRef.current = null;
       isConnectingRef.current = false;
+      voiceStateRef.current = 'DISCONNECTED';
     };
 
-    // Reconnect with exponential backoff when the server drops the session.
-    const scheduleReconnect = (closedConnectionId, code) => {
+    const scheduleReconnect = (closedConnectionId, code, reason) => {
+      if (code === 1007) {
+        console.error(`Gemini Live model or audio configuration is not supported (code 1007): ${reason || 'Invalid configuration'}. Reconnect aborted.`);
+        setError(`Gemini Live model or audio configuration is not supported (code 1007).`);
+        disconnect();
+        return;
+      }
+      const FATAL_CLOSE_CODES = [1002, 1003, 1008, 1009, 1010, 1015];
+      if (FATAL_CLOSE_CODES.includes(code)) {
+        console.error(`Gemini Live fatal error (code ${code}): API key or endpoint configuration is invalid. Reconnect aborted.`);
+        setError(`Voice service configuration error (code ${code}). Please check API settings.`);
+        disconnect();
+        return;
+      }
       if (!shouldReconnectRef.current) {
-        // Call was ended by the user; do the full teardown/logging.
         disconnect();
         return;
       }
@@ -292,8 +479,6 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
         return;
       }
       reconnectAttemptsRef.current = attempt;
-      // First retry is near-immediate; with transparent session resumption
-      // there is no state to rebuild, so don't make the user wait.
       const delay = attempt === 1
         ? 400 + Math.random() * 300
         : Math.min(6000, 1200 * Math.pow(2, attempt - 2)) + Math.random() * 600;
@@ -306,11 +491,6 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
       }, delay);
     };
 
-    // Handle a function call from the model and acknowledge it.
-    // NOTE: tool calls arrive as a dedicated `toolCall` server message on
-    // current native-audio models (NOT inside modelTurn.parts), and the
-    // function response MUST echo the tool call `id` on the Gemini API,
-    // otherwise sendToolResponse throws and the session can be dropped (1011).
     const handleFunctionCall = (fc) => {
       if (!fc) return;
       let responseText = "Done.";
@@ -319,7 +499,6 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
           console.log("CRISIS DETECTED BY AI:", fc.args);
           if (fc.args) {
             reportedConditionsRef.current.push(fc.args);
-            // Call backend API to trigger escalation or log the condition
             const token = localStorage.getItem('token');
             fetch('/api/v1/chatbot/voice-escalation', {
               method: 'POST',
@@ -356,53 +535,68 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
         console.warn("Error processing function call:", e);
       }
 
-      // Acknowledge the tool call back to Gemini
       try {
         const functionResponse = {
           name: fc.name,
           response: { result: responseText },
         };
         if (fc.id) functionResponse.id = fc.id;
-        sessionRef.current?.sendToolResponse({
-          functionResponses: [functionResponse],
-        });
+        const activeSession = sessionRef.current;
+        if (activeSession) {
+          activeSession.sendToolResponse({
+            functionResponses: [functionResponse],
+          });
+        }
       } catch (e) {
-        console.warn("Could not send tool response:", e);
+        console.error("[AROHAN_LIVE] Error sending tool response:", e);
       }
     };
 
     try {
+      console.log('[AROHAN_LIVE] CALL_START', { isReconnect });
       // 1. Initialize Web Audio Contexts
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       ctxCapture.input = new AudioContextClass({ sampleRate: 16000 });
       audioContextRef.current = ctxCapture.input;
+      console.log('[AROHAN_LIVE] CAPTURE_CONTEXT_STATE', ctxCapture.input.state, 'sampleRate=' + ctxCapture.input.sampleRate);
       if (audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume().catch(() => {});
       }
       ctxCapture.playback = new AudioContextClass();
       playbackContextRef.current = ctxCapture.playback;
+      console.log('[AROHAN_LIVE] PLAYBACK_CONTEXT_STATE', ctxCapture.playback.state, 'sampleRate=' + ctxCapture.playback.sampleRate);
 
-      // Pre-warm playback audio context immediately
       if (playbackContextRef.current.state === 'suspended') {
         playbackContextRef.current.resume().catch(() => {});
       }
 
-      // 2. Load AudioWorklet. Must be a real same-origin file served by Vite
-      // (public/worklets/pcm-processor.js); blob: URLs fail in Chromium.
+      // Add user gesture unlock listeners
+      const unlockPlayback = () => {
+        if (playbackContextRef.current && playbackContextRef.current.state === 'suspended') {
+          playbackContextRef.current.resume().catch(() => {});
+        }
+      };
+      ['click', 'touchstart', 'keydown'].forEach(evt => {
+        window.addEventListener(evt, unlockPlayback, { passive: true });
+        unlockListenersRef.current.push({ type: evt, fn: unlockPlayback });
+      });
+
+      // 2. Load AudioWorklet module
       try {
         await audioContextRef.current.audioWorklet.addModule('/worklets/pcm-processor.js');
+        console.log('[AROHAN_LIVE] WORKLET_CREATED', 'from /worklets/pcm-processor.js');
       } catch (err) {
         console.warn("AudioWorklet module load failed from /worklets, trying blob fallback:", err.message);
         const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
         const workletUrl = URL.createObjectURL(blob);
         try {
           await audioContextRef.current.audioWorklet.addModule(workletUrl);
+          console.log('[AROHAN_LIVE] WORKLET_CREATED', 'from blob fallback');
         } catch (err2) {
           console.error("AudioWorklet module load aborted/failed:", err2.message);
         }
       }
 
-      // Check if aborted
       if (connectionIdRef.current !== myConnectionId) {
         if (ctxCapture.input && ctxCapture.input.state !== 'closed') ctxCapture.input.close().catch(() => {});
         if (ctxCapture.playback && ctxCapture.playback.state !== 'closed') ctxCapture.playback.close().catch(() => {});
@@ -420,8 +614,8 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
         }
       });
       mediaStreamRef.current = stream;
+      console.log('[AROHAN_LIVE] MIC_ACQUIRED', 'tracks=' + stream.getAudioTracks().length);
 
-      // Check if aborted
       if (connectionIdRef.current !== myConnectionId) {
         stream.getTracks().forEach(t => t.stop());
         mediaStreamRef.current = null;
@@ -432,32 +626,32 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
       }
 
       // 4. Connect to Google GenAI Live Socket
+      console.log('[AROHAN_LIVE] WS_CONNECTING');
       const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: { apiVersion: 'v1alpha' }
+        apiKey: currentApiKey,
+        httpOptions: { apiVersion: 'v1beta' }
       });
 
-      const session = await ai.live.connect({
-        model: "gemini-2.5-flash-native-audio-preview-12-2025",
+      let lastMicLogTime = 0;
+      let lastSentLogTime = 0;
+
+      const connectedSession = await ai.live.connect({
+        model: "models/gemini-2.5-flash-native-audio-latest",
         config: {
+          responseModalities: ["AUDIO"],
           systemInstruction: {
-            parts: [{ text: customInstruction || "You are AAROHAN, a warm, supportive counselor and a deeply empathetic friend for victims in India, grounded in Indian law. In every reply: FIRST validate their feeling in one natural sentence (never use cliches like 'I am here for you'), THEN empower them — if an Indian law clearly applies (Constitution Art. 14/15/21, free legal aid under Art. 39A, defamation, criminal intimidation, IT Act for cybercrime, POCSO, Domestic Violence Act, SC/ST Act, anti-ragging UGC rules), say briefly that the law is on their side and name it; never invent section numbers. END with one concrete next step (FIR at any police station, cybercrime.gov.in, NALSA helpline 15100, Tele-MANAS 14416) or one gentle question. Keep every reply 2-3 short spoken sentences. Speak kindly and naturally. You MUST regularly call the report_patient_condition tool if you detect any signs of self-harm, suicidal ideation, or severe distress. You MUST call the log_conversation_turn tool after EVERY time the user speaks. When the call first starts, immediately introduce yourself as their supportive counselor from Aarohan and ask how they are feeling today." }]
+            parts: [{ text: customInstructionRef.current || "You are AAROHAN, a warm, supportive counselor and a deeply empathetic friend for victims in India, grounded in Indian law. In every reply: FIRST validate their feeling in one natural sentence (never use cliches like 'I am here for you'), THEN empower them — if an Indian law clearly applies (Constitution Art. 14/15/21, free legal aid under Art. 39A, defamation, criminal intimidation, IT Act for cybercrime, POCSO, Domestic Violence Act, SC/ST Act, anti-ragging UGC rules), say briefly that the law is on their side and name it; never invent section numbers. END with one concrete next step (FIR at any police station, cybercrime.gov.in, NALSA helpline 15100, Tele-MANAS 14416) or one gentle question. Keep every reply 2-3 short spoken sentences. Speak kindly and naturally. You MUST regularly call the report_patient_condition tool if you detect any signs of self-harm, suicidal ideation, or severe distress. You may call the log_conversation_turn tool to log the interaction, but ALWAYS speak your full supportive voice response to the user first without waiting or blocking audio for tool calls. When the call first starts, immediately introduce yourself as their supportive counselor from Aarohan and ask how they are feeling today." }]
           },
-          // Low-latency tuning: sensitive turn detection, short end-of-turn
-          // silence, barge-in enabled, transparent session resumption so a
-          // dropped/reconnected session keeps the conversation state.
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
               startOfSpeechSensitivity: 'START_SENSITIVITY_HIGH',
               endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
-              prefixPaddingMs: 60,
-              silenceDurationMs: 220,
+              prefixPaddingMs: 40,
+              silenceDurationMs: 200,
             },
             activityHandling: 'START_OF_ACTIVITY_INTERRUPTS',
           },
-          // NOTE: `transparent: true` is Gemini Enterprise only - the
-          // Gemini Developer API rejects it, so we only pass a plain handle.
           sessionResumption: resumptionHandleRef.current
             ? { handle: resumptionHandleRef.current }
             : undefined,
@@ -480,7 +674,7 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
                 },
                 {
                   name: "log_conversation_turn",
-                  description: "Call this after EVERY user speech to log the interaction in the counselor's dashboard.",
+                  description: "Call this to log the interaction in the counselor's dashboard after speaking to the user.",
                   parameters: {
                     type: "OBJECT",
                     properties: {
@@ -499,15 +693,16 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
         callbacks: {
           onopen: () => {
             if (connectionIdRef.current !== myConnectionId) return;
+            console.log('[AROHAN_LIVE] WS_OPEN');
             console.log("Gemini Live connection established");
             setIsConnected(true);
+            voiceStateRef.current = 'CONNECTED_IDLE';
+
             if (!callStartTimeRef.current) {
               callStartTimeRef.current = Date.now();
             }
             if (!isReconnect) {
               reportedConditionsRef.current = [];
-
-              // Add start voice call API call (only on the initial connect)
               const token = localStorage.getItem('token');
               if (token) {
                 fetch('/api/v1/chatbot/voice-start', {
@@ -521,7 +716,6 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
               playbackContextRef.current.resume().catch(() => {});
             }
 
-            // Reset backoff once a connection proves stable
             setTimeout(() => {
               if (connectionIdRef.current === myConnectionId) {
                 reconnectAttemptsRef.current = 0;
@@ -534,14 +728,66 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
               workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'pcm-processor');
 
               workletNodeRef.current.port.onmessage = (e) => {
-                if (!sessionRef.current || connectionIdRef.current !== myConnectionId) return;
+                if (connectionIdRef.current !== myConnectionId) return;
                 const message = e.data;
                 if (message.type === 'audio') {
                   const pcmBlob = createPcmBlob(message.data);
+                  const activeSession = sessionRef.current;
+                  if (!activeSession) return;
+
                   try {
-                    sessionRef.current.sendRealtimeInput({ media: pcmBlob });
-                  } catch (err) {
-                    console.warn('Error sending audio:', err);
+                    activeSession.sendRealtimeInput({ media: pcmBlob });
+
+                    // Measure RMS volume
+                    let sum = 0;
+                    const rawSamples = message.data;
+                    for (let i = 0; i < rawSamples.length; i++) {
+                      sum += rawSamples[i] * rawSamples[i];
+                    }
+                    const rms = Math.sqrt(sum / rawSamples.length);
+
+                    const nowT = performance.now();
+                    if (nowT - lastMicLogTime > 800) {
+                      console.log('[AROHAN_LIVE] PCM_MIC_CHUNK', rawSamples.length, 'samples, rms=' + rms.toFixed(4));
+                      lastMicLogTime = nowT;
+                    }
+                    if (nowT - lastSentLogTime > 800) {
+                      console.log('[AROHAN_LIVE] MIC_PCM_SENT');
+                      lastSentLogTime = nowT;
+                    }
+
+                    if (rms > 0.012) {
+                      // User speaking detected
+                      voiceStateRef.current = 'USER_SPEAKING';
+                      lastMeaningfulSpeechRef.current = performance.now();
+
+                      const now = performance.now();
+                      if (!diagRef.current.speechStart) diagRef.current.speechStart = now;
+                      diagRef.current.speechEnd = now;
+                      diagRef.current.isActiveTurn = true;
+
+                      // Cancel timers while user is speaking
+                      if (silenceTimerRef.current) {
+                        clearTimeout(silenceTimerRef.current);
+                        silenceTimerRef.current = null;
+                      }
+                      if (userSpeechTimerRef.current) {
+                        clearTimeout(userSpeechTimerRef.current);
+                        userSpeechTimerRef.current = null;
+                      }
+                    } else if (voiceStateRef.current === 'USER_SPEAKING') {
+                      // User pause / speech end detected
+                      if (!userSpeechTimerRef.current) {
+                        userSpeechTimerRef.current = setTimeout(() => {
+                          userSpeechTimerRef.current = null;
+                          if (voiceStateRef.current === 'USER_SPEAKING') {
+                            voiceStateRef.current = 'WAITING_FOR_GEMINI';
+                          }
+                        }, 400);
+                      }
+                    }
+                  } catch (error) {
+                    console.error('[AROHAN_LIVE] Error sending audio:', error);
                   }
                 }
               };
@@ -552,32 +798,39 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
           },
           onmessage: (message) => {
             if (connectionIdRef.current !== myConnectionId) return;
+            console.log('[AROHAN_LIVE] GEMINI_MESSAGE_RECEIVED', Object.keys(message));
 
-            // Keep the latest resumable handle for transparent reconnects.
+            if (message.setupComplete) {
+              setupCompleteRef.current = true;
+              console.log('[AROHAN_LIVE] SETUP_COMPLETE');
+              sendInitialGreetingIfReady();
+            }
+
             if (message.sessionResumptionUpdate?.resumable && message.sessionResumptionUpdate.newHandle) {
               resumptionHandleRef.current = message.sessionResumptionUpdate.newHandle;
             }
 
-            // Server announces a planned disconnect (e.g. load balancing).
-            // Close now; onclose schedules the transparent reconnect.
             if (message.goAway) {
               console.log("Gemini Live: goAway received, closing for reconnect");
               try { sessionRef.current?.close(); } catch (e) {}
               return;
             }
 
-            // Handle Interruption
+            // Handle Interruption / Barge-in
             if (message.serverContent?.interrupted) {
-              // Stop all playing audio nodes instantly
+              console.log('[AROHAN_LIVE] INTERRUPTED');
               activeAudioNodesRef.current.forEach(node => {
                 try { node.stop(); } catch (e) {}
               });
               activeAudioNodesRef.current = [];
               setIsSpeaking(false);
+              isSpeakingRef.current = false;
+              isNewTurnRef.current = true;
 
               if (playbackContextRef.current) {
                 nextPlayTimeRef.current = playbackContextRef.current.currentTime;
               }
+              voiceStateRef.current = 'INTERRUPTED';
             }
 
             // Handle Audio Playback
@@ -586,75 +839,83 @@ export default function useGeminiLive(apiKey, customInstruction = "") {
                 if (part.inlineData && part.inlineData.mimeType?.startsWith('audio/pcm')) {
                   const pcmData = part.inlineData.data;
                   if (pcmData) {
+                    console.log('[AROHAN_LIVE] MODEL_AUDIO_RECEIVED', pcmData.length, 'base64 chars');
+                    if (silenceTimerRef.current) {
+                      clearTimeout(silenceTimerRef.current);
+                      silenceTimerRef.current = null;
+                    }
+                    if (userSpeechTimerRef.current) {
+                      clearTimeout(userSpeechTimerRef.current);
+                      userSpeechTimerRef.current = null;
+                    }
+                    if (diagRef.current.isActiveTurn && !diagRef.current.firstAudioReceived) {
+                      diagRef.current.firstAudioReceived = performance.now();
+                    }
                     playPCMChunk(pcmData);
                   }
                 } else if (part.functionCall) {
-                  // Legacy delivery path; current models send toolCall messages.
                   handleFunctionCall(part.functionCall);
                 }
               }
             }
 
-            // Function calls arrive as a dedicated toolCall message.
             if (message.toolCall?.functionCalls) {
               for (const fc of message.toolCall.functionCalls) {
                 handleFunctionCall(fc);
               }
             }
+
+            if (message.serverContent?.turnComplete) {
+              console.log('[AROHAN_LIVE] TURN_COMPLETE');
+              isNewTurnRef.current = true;
+              if (activeAudioNodesRef.current.length === 0) {
+                voiceStateRef.current = 'CONNECTED_IDLE';
+                setIsSpeaking(false);
+                isSpeakingRef.current = false;
+                resetSilenceTimer();
+              }
+            }
           },
           onclose: (event) => {
             if (connectionIdRef.current !== myConnectionId) return;
+            console.log('[AROHAN_LIVE] WS_CLOSED', event?.code, event?.reason);
             console.log("Gemini Live Session Closed", event?.code, event?.reason);
             setIsConnected(false);
             setIsSpeaking(false);
+            isSpeakingRef.current = false;
             teardownConnection();
-            scheduleReconnect(myConnectionId, event?.code);
+            scheduleReconnect(myConnectionId, event?.code, event?.reason);
           },
           onerror: (err) => {
             if (connectionIdRef.current !== myConnectionId) return;
+            console.error('[AROHAN_LIVE] ERROR', err);
             console.error("Gemini Live Session Error", err);
-            // Do not disconnect here: onclose follows and handles reconnect.
           }
         }
       });
 
-      // If a new connection started while this one was setting up, close this one.
       if (connectionIdRef.current !== myConnectionId) {
-        try { session.close(); } catch (e) {}
+        try { connectedSession.close(); } catch (e) {}
         isConnectingRef.current = false;
         return;
       }
 
-      sessionRef.current = session;
+      sessionRef.current = connectedSession;
+      console.log('[AROHAN_LIVE] SESSION_ASSIGNED');
       isConnectingRef.current = false;
 
-      // Give the session a moment to settle before the first text turn.
-      await new Promise((r) => setTimeout(r, 120));
-
-      // A resumed session already has the conversation state (and the model
-      // may be mid-response), so do not re-send the greeting trigger.
-      if (isReconnect) return;
-
-      try {
-        session.sendClientContent({
-          turns: [{
-            role: 'user',
-            parts: [{ text: "System trigger: The user has just connected to the voice call. Please speak first, greet them warmly as their counselor, and ask how they are feeling today." }],
-          }],
-          turnComplete: true,
-        });
-      } catch (err) {
-        console.warn("Could not send initial trigger:", err);
+      if (!isReconnect) {
+        sendInitialGreetingIfReady();
       }
 
     } catch (err) {
       if (connectionIdRef.current === myConnectionId) {
-        console.error(err);
+        console.error('[AROHAN_LIVE] ERROR', err);
         setError("Setup failed: " + err.message);
         isConnectingRef.current = false;
       }
     }
-  }, [apiKey, customInstruction, disconnect]);
+  }, [disconnect, resetSilenceTimer, sendInitialGreetingIfReady]);
 
   return { isConnected, error, connect, disconnect, isSpeaking };
 }

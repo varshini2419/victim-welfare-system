@@ -305,7 +305,208 @@ const processVictimMessage = async (sessionId, victimId, content, language = 'En
   };
 };
 
+const processVictimMessageStream = async (sessionId, victimId, content, language = 'English', onChunk = () => {}) => {
+  const session = await ChatSession.findOne({ _id: sessionId, victimId, status: 'active' });
+  if (!session) {
+    const error = new Error('Session not found or not active');
+    error.status = 404;
+    throw error;
+  }
+
+  const langCode = resolveLangCode(language);
+  const keywordCrisis = aiService.getKeywordCrisisFlag(content);
+
+  const contextLimit = parseInt(process.env.CHAT_CONTEXT_MESSAGES) || 15;
+  const previousMessages = await ChatMessage.find({ sessionId: session._id })
+    .sort({ createdAt: -1 })
+    .limit(contextLimit);
+  previousMessages.reverse();
+
+  const conversationHistory = previousMessages.map(msg => ({
+    role: msg.senderType === 'victim' ? 'user' : 'assistant',
+    content: msg.content
+  }));
+
+  let analysis;
+  if (keywordCrisis) {
+    const safetyReply = aiService.getSafetyMessage(langCode);
+    onChunk(safetyReply);
+    analysis = {
+      language_detected: langCode,
+      sentiment: { label: 'negative', score: 0.9 },
+      emotions: [{ label: 'fear', score: 0.9 }],
+      distress_score: 90,
+      crisis_flag: true,
+      reply: safetyReply,
+      source: 'keyword_crisis'
+    };
+  } else {
+    try {
+      const streamResult = await aiService.fastConversationalStream(content, conversationHistory, language, onChunk);
+      const baseAnalysis = aiService.getSmartFallback(content, language);
+      analysis = {
+        ...baseAnalysis,
+        reply: streamResult.reply || baseAnalysis.reply,
+        source: streamResult.source || 'api_fast_stream'
+      };
+    } catch (error) {
+      console.error('[chatbotService-Stream] Fast stream failed:', error.message);
+      analysis = aiService.getSmartFallback(content, language);
+      onChunk(analysis.reply);
+    }
+  }
+
+  const isCrisis = keywordCrisis || analysis.crisis_flag;
+  if (isCrisis && !keywordCrisis) {
+    analysis.reply = aiService.getSafetyMessage(analysis.language_detected || langCode);
+    analysis.crisis_flag = true;
+    analysis.distress_score = Math.max(analysis.distress_score, 90);
+    onChunk(analysis.reply);
+
+    triggerCrisisEscalation(victimId, analysis)
+      .catch((err) => console.error('[chatbotService] Background escalation failed:', err.message));
+  } else if (keywordCrisis) {
+    triggerCrisisEscalation(victimId, analysis)
+      .catch((err) => console.error('[chatbotService] Background escalation failed:', err.message));
+  }
+
+  const distressBand = getDistressBand(analysis.distress_score);
+  const primaryEmotionRaw = analysis.emotions?.[0]?.label || 'neutral';
+  const primaryEmotion = mapEmotion(primaryEmotionRaw);
+
+  const userMessage = await ChatMessage.create({
+    sessionId: session._id,
+    senderType: 'victim',
+    content,
+    isFlagged: isCrisis,
+    metadata: {
+      emotion: primaryEmotion,
+      distressScore: analysis.distress_score,
+      distressBand,
+      language: langCode,
+      sentiment: analysis.sentiment,
+      emotions: analysis.emotions,
+      crisis_flag: isCrisis,
+      language_detected: analysis.language_detected,
+      source: analysis.source
+    }
+  });
+
+  riskEventService.createRiskEvent({
+    victimId,
+    sourceMessageId: userMessage._id,
+    analysis: {
+      ...analysis,
+      distress_score: analysis.distress_score,
+      crisis_flag: isCrisis,
+    },
+  }).then(async (riskEventResult) => {
+    if (riskEventResult.eligible && riskEventResult.event) {
+      try {
+        await automaticCallService.initiateAutomaticCall({
+          victimId,
+          riskEvent: riskEventResult.event,
+        });
+      } catch (err) {
+        console.error('[chatbotService] Automatic call failed:', err.message);
+      }
+    }
+  }).catch((err) => console.error('[chatbotService] Risk event creation failed:', err.message));
+
+  const emotionUpdatePromise = (async () => {
+    try {
+      let emotionDoc = await EmotionAnalysis.findOne({ victimId });
+      if (!emotionDoc) {
+        emotionDoc = new EmotionAnalysis({
+          victimId,
+          sessionId: session._id,
+          distressScore: analysis.distress_score,
+          distressBand,
+          primaryEmotion,
+          emotionsBreakdown: {
+            Anxious: 0, Sad: 0, Fearful: 0, Angry: 0,
+            Calm: 0, Hopeful: 0, Neutral: 0
+          },
+          recentLog: []
+        });
+      }
+
+      emotionDoc.distressScore = Math.round(
+        (emotionDoc.distressScore * 0.4) + (analysis.distress_score * 0.6)
+      );
+      emotionDoc.distressBand = getDistressBand(emotionDoc.distressScore);
+      emotionDoc.primaryEmotion = primaryEmotion;
+      emotionDoc.sessionId = session._id;
+
+      if (emotionDoc.emotionsBreakdown[primaryEmotion] !== undefined) {
+        emotionDoc.emotionsBreakdown[primaryEmotion] += 1;
+      } else {
+        emotionDoc.emotionsBreakdown[primaryEmotion] = 1;
+      }
+
+      emotionDoc.recentLog.unshift({
+        message: content.substring(0, 100),
+        emotion: primaryEmotion,
+        distressScore: analysis.distress_score,
+        timestamp: new Date()
+      });
+      if (emotionDoc.recentLog.length > 20) {
+        emotionDoc.recentLog = emotionDoc.recentLog.slice(0, 20);
+      }
+
+      await emotionDoc.save();
+    } catch (err) {
+      console.error('[chatbotService] EmotionAnalysis update failed:', err.message);
+    }
+  })();
+
+  session.lastMessageAt = Date.now();
+  if (session.title === 'New Conversation') {
+    session.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+  }
+
+  const aiMessagePromise = ChatMessage.create({
+    sessionId: session._id,
+    senderType: isCrisis ? 'system' : 'ai',
+    content: analysis.reply,
+    isFlagged: isCrisis,
+    metadata: {
+      emotionResponseFor: primaryEmotion,
+      language: langCode,
+      source: analysis.source
+    }
+  });
+
+  const [aiMessage] = await Promise.all([
+    aiMessagePromise,
+    session.save(),
+    emotionUpdatePromise,
+  ]);
+
+  return {
+    userMessage,
+    aiMessage,
+    analysis: {
+      sentiment: analysis.sentiment,
+      emotions: analysis.emotions,
+      distress_score: analysis.distress_score,
+      distress_band: distressBand,
+      risk_level: deriveRiskLevel(analysis.distress_score),
+      risk_score: analysis.risk_score ?? analysis.riskScore ?? analysis.distress_score,
+      crisis_flag: isCrisis,
+      language_detected: analysis.language_detected || langCode,
+      primary_emotion: primaryEmotionRaw,
+      primary_emotion_mapped: primaryEmotion,
+      source: analysis.source,
+      escalationEligible: isCrisis || analysis.distress_score >= 50,
+      automaticCall: null,
+    }
+  };
+};
+
 module.exports = {
   processVictimMessage,
+  processVictimMessageStream,
   triggerCrisisEscalation
 };
+

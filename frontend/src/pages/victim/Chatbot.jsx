@@ -95,6 +95,26 @@ export default function Chatbot() {
     return data;
   };
 
+  // Ref to hold final transcript for auto-dispatch on speech completion
+  const speechTranscriptRef = useRef('');
+  const sendingRef = useRef(false);
+  const cachedVoicesRef = useRef([]);
+
+  // Pre-warm SpeechSynthesis Voices to avoid TTS lookup delay
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const updateVoices = () => {
+      cachedVoicesRef.current = window.speechSynthesis.getVoices();
+    };
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
   // Setup Web Speech Recognition for Audio Intake (STT) with robust error handling
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -102,20 +122,26 @@ export default function Chatbot() {
       try {
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.lang = selectedLang;
 
         recognition.onresult = (event) => {
-          const transcript = event.results?.[0]?.[0]?.transcript;
-          if (transcript) {
-            setInputValue((prev) => (prev ? prev + ' ' + transcript : transcript));
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
           }
-          setIsListening(false);
+          const transcript = finalTranscript || event.results?.[0]?.[0]?.transcript || '';
+          if (transcript.trim()) {
+            speechTranscriptRef.current = transcript.trim();
+            setInputValue(transcript.trim());
+          }
         };
 
         recognition.onerror = (event) => {
-          // Graceful handling of network, no-speech, and permission errors
           setIsListening(false);
+          speechTranscriptRef.current = '';
           const err = event.error;
 
           if (err === 'network') {
@@ -131,6 +157,13 @@ export default function Chatbot() {
 
         recognition.onend = () => {
           setIsListening(false);
+          // Zero-delay auto-dispatch voice message when victim finishes speaking
+          if (speechTranscriptRef.current) {
+            const t0 = performance.now();
+            const voiceText = speechTranscriptRef.current;
+            speechTranscriptRef.current = '';
+            handleSendMessage(voiceText, true, t0);
+          }
         };
 
         recognitionRef.current = recognition;
@@ -171,9 +204,10 @@ export default function Chatbot() {
         if (!recognitionRef.current) {
           const recognition = new SpeechRecognition();
           recognition.continuous = false;
-          recognition.interimResults = false;
+          recognition.interimResults = true;
           recognitionRef.current = recognition;
         }
+        speechTranscriptRef.current = '';
         recognitionRef.current.lang = selectedLang;
         recognitionRef.current.start();
         setIsListening(true);
@@ -187,43 +221,106 @@ export default function Chatbot() {
     }
   };
 
-  // Text-to-Speech (TTS) Audio Output
-  const speakText = (text, msgId = null) => {
-    if (!('speechSynthesis' in window)) {
+  // Active Utterances ref to prevent V8 Garbage Collection from cutting off speech mid-sentence
+  const activeUtterancesRef = useRef([]);
+
+  // Pre-warm SpeechSynthesis Voices to avoid TTS lookup delay
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const updateVoices = () => {
+      cachedVoicesRef.current = window.speechSynthesis.getVoices();
+    };
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+        window.speechSynthesis.cancel();
+      }
+      activeUtterancesRef.current = [];
+    };
+  }, []);
+
+  // Text-to-Speech (TTS) Audio Output with stable GC ref lifetime and sentence queuing
+  const speakText = (text, msgId = null, isAppendStream = false, t0 = null) => {
+    if (!('speechSynthesis' in window) || !text) {
       return;
     }
 
-    window.speechSynthesis.cancel(); // Stop ongoing speech
-
-    if (speakingMsgId === msgId && msgId !== null) {
+    // Explicit toggle stop if user clicks the currently speaking message button
+    if (speakingMsgId === msgId && msgId !== null && !isAppendStream) {
+      window.speechSynthesis.cancel();
+      activeUtterancesRef.current = [];
       setSpeakingMsgId(null);
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = selectedLang;
-    utterance.rate = 0.95;
-
-    // Try to match voice for selected language if available
-    const voices = window.speechSynthesis.getVoices();
-    const langVoice = voices.find(v => v.lang.startsWith(selectedLang.split('-')[0]));
-    if (langVoice) {
-      utterance.voice = langVoice;
+    // Cancel ongoing speech only when starting a brand new response turn (not appending stream chunks)
+    if (!isAppendStream) {
+      window.speechSynthesis.cancel();
+      activeUtterancesRef.current = [];
     }
 
-    utterance.onstart = () => {
-      if (msgId) setSpeakingMsgId(msgId);
-    };
+    const cleanText = text.trim();
+    const sentenceMatches = cleanText.match(/[^.!?\n।]+[.!?\n।]+/g);
+    const chunks = (sentenceMatches && sentenceMatches.length > 0)
+      ? sentenceMatches.map(s => s.trim()).filter(Boolean)
+      : [cleanText];
 
-    utterance.onend = () => {
-      setSpeakingMsgId(null);
-    };
+    const voices = cachedVoicesRef.current.length > 0 ? cachedVoicesRef.current : window.speechSynthesis.getVoices();
+    const langPrefix = selectedLang.split('-')[0];
+    const langVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
 
-    utterance.onerror = () => {
-      setSpeakingMsgId(null);
-    };
+    if (import.meta.env.DEV) {
+      console.log(`[TTS-Diagnostic] Queueing ${chunks.length} sentence chunk(s) (append=${isAppendStream}) for message: ${msgId || 'auto'}`);
+    }
 
-    window.speechSynthesis.speak(utterance);
+    let remainingChunks = chunks.length;
+
+    chunks.forEach((chunkText, idx) => {
+      const utterance = new SpeechSynthesisUtterance(chunkText);
+      utterance.lang = selectedLang;
+      utterance.rate = 1.0;
+      if (langVoice) utterance.voice = langVoice;
+
+      activeUtterancesRef.current.push(utterance);
+
+      if (idx === 0) {
+        utterance.onstart = () => {
+          if (msgId) setSpeakingMsgId(msgId);
+          const now = performance.now();
+          if (t0 !== null && import.meta.env.DEV) {
+            console.log(`[Phase3-Instrumentation] ========================================`);
+            console.log(`[Phase3-Instrumentation] T9 - T0 FIRST AUDIBLE LATENCY: ${(now - t0).toFixed(1)} ms`);
+            console.log(`[Phase3-Instrumentation] Target <= 5000ms achieved: ${now - t0 <= 5000 ? 'SUCCESS ✅' : 'FAIL ❌'}`);
+            console.log(`[Phase3-Instrumentation] ========================================`);
+          } else if (import.meta.env.DEV) {
+            console.log(`[TTS-Diagnostic] Audio playback started for message: ${msgId || 'auto'}`);
+          }
+        };
+      }
+
+      const handleChunkFinish = () => {
+        activeUtterancesRef.current = activeUtterancesRef.current.filter(u => u !== utterance);
+        remainingChunks -= 1;
+        if (remainingChunks <= 0 && activeUtterancesRef.current.length === 0) {
+          setSpeakingMsgId(null);
+          if (import.meta.env.DEV) {
+            console.log(`[TTS-Diagnostic] Audio playback completed for message: ${msgId || 'auto'}`);
+          }
+        }
+      };
+
+      utterance.onend = handleChunkFinish;
+      utterance.onerror = (e) => {
+        if (import.meta.env.DEV) {
+          console.warn(`[TTS-Diagnostic] Utterance error:`, e);
+        }
+        handleChunkFinish();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    });
   };
 
   // 1. Fetch Sessions on mount
@@ -357,9 +454,14 @@ export default function Chatbot() {
     }
   };
 
-  const handleSendMessage = async () => {
-    const trimmedInput = inputValue.trim();
-    if (!trimmedInput || isTyping) return;
+  const handleSendMessage = async (overrideText = null, isVoice = false, startTime = null) => {
+    const textToSend = typeof overrideText === 'string' ? overrideText : inputValue;
+    const trimmedInput = textToSend.trim();
+    if (!trimmedInput || isTyping || sendingRef.current) return;
+
+    sendingRef.current = true;
+    const t0 = startTime || performance.now();
+    const t1 = performance.now();
 
     let currentSessionId = activeSessionId;
     
@@ -371,6 +473,7 @@ export default function Chatbot() {
         setActiveSessionId(currentSessionId);
       } catch (err) {
         setSystemError('Failed to start conversation.');
+        sendingRef.current = false;
         return;
       }
     }
@@ -389,68 +492,134 @@ export default function Chatbot() {
     setIsTyping(true);
     setSystemError('');
 
+    const token = localStorage.getItem('token') || '';
+    const t2 = performance.now();
+
     try {
-      const responseData = await apiFetch(`/sessions/${currentSessionId}/messages`, {
+      const response = await fetch(`/api/v1/chatbot/sessions/${currentSessionId}/messages?stream=true`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ 
           content: trimmedInput,
           language: currentLangObj.label
         })
       });
-      
-      const aiData = responseData.data;
 
-      // Read REAL analysis from backend Gemini response
-      let msgEmotion = null;
-      let msgSentiment = null;
-      let isCrisis = false;
-
-      if (responseData.analysis) {
-        setLatestAnalysis(responseData.analysis);
-        msgEmotion = responseData.analysis.primary_emotion || null;
-        msgSentiment = responseData.analysis.sentiment?.label || null;
-        isCrisis = responseData.analysis.crisis_flag || false;
-      }
-
-      const aiMsgObj = {
-        id: aiData._id || Date.now().toString(),
-        role: 'system',
-        content: aiData.content,
-        timestamp: new Date(aiData.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isError: aiData.isFlagged,
-        emotion: msgEmotion,
-        sentiment: msgSentiment,
-        crisis: isCrisis
-      };
-
-      setMessages((prev) => [...prev, aiMsgObj]);
-
-      // Auto-TTS Response Speech if enabled
-      if (autoTts && aiData.content) {
-        speakText(aiData.content, aiMsgObj.id);
-      }
-      
-      if (messages.length === 0) {
-        const updatedSessions = sessions.map(s => {
-          if (s._id === currentSessionId) {
-            return { ...s, title: trimmedInput.substring(0, 30) };
-          }
-          return s;
+      if (!response.ok || !response.body) {
+        // Step 7 Fallback to non-streaming if stream endpoint fails
+        console.warn('[Chatbot] Stream response failed or unreadable, falling back');
+        const fallbackData = await apiFetch(`/sessions/${currentSessionId}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({ content: trimmedInput, language: currentLangObj.label })
         });
-        setSessions(updatedSessions);
+        const aiData = fallbackData.data;
+        if (fallbackData.analysis) setLatestAnalysis(fallbackData.analysis);
+        const aiMsgObj = {
+          id: aiData._id || Date.now().toString(),
+          role: 'system',
+          content: aiData.content,
+          timestamp: new Date(aiData.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isError: aiData.isFlagged
+        };
+        setMessages(prev => [...prev, aiMsgObj]);
+        if (autoTts && aiData.content) speakText(aiData.content, aiMsgObj.id, false, t0);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let isFirstChunk = true;
+      let fullAiText = '';
+      let streamDoneData = null;
+      let t7FirstChunk = null;
+
+      const streamMsgId = 'stream-' + Date.now();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const jsonStr = trimmed.slice(5).trim();
+          if (!jsonStr) continue;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.type === 'chunk' && parsed.text) {
+              if (isFirstChunk) {
+                t7FirstChunk = performance.now();
+                if (import.meta.env.DEV) {
+                  console.log(`[Phase3-Instrumentation] STT Latency (T1-T0): ${(t1 - t0).toFixed(1)}ms`);
+                  console.log(`[Phase3-Instrumentation] Network Latency (T2-T1): ${(t2 - t1).toFixed(1)}ms`);
+                  console.log(`[Phase3-Instrumentation] Stream First Chunk (T7-T2): ${(t7FirstChunk - t2).toFixed(1)}ms`);
+                }
+              }
+
+              fullAiText += (fullAiText ? ' ' : '') + parsed.text;
+
+              // Step 4 & 6: Feed phrase chunk directly into existing Phase 2 speakText / TTS queue!
+              if (autoTts || isVoice) {
+                const t8 = performance.now();
+                if (isFirstChunk && import.meta.env.DEV) {
+                  console.log(`[Phase3-Instrumentation] Stream Transit to TTS Queue (T8-T7): ${(t8 - t7FirstChunk).toFixed(1)}ms`);
+                }
+                speakText(parsed.text, streamMsgId, !isFirstChunk, isFirstChunk ? t0 : null);
+              }
+
+              const wasFirst = isFirstChunk;
+              isFirstChunk = false;
+
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last && last.id === streamMsgId) {
+                  return [...prev.slice(0, -1), { ...last, content: fullAiText }];
+                } else {
+                  return [...prev, {
+                    id: streamMsgId,
+                    role: 'system',
+                    content: fullAiText,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    isStreaming: true
+                  }];
+                }
+              });
+            } else if (parsed.type === 'done') {
+              streamDoneData = parsed;
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (streamDoneData) {
+        if (streamDoneData.analysis) setLatestAnalysis(streamDoneData.analysis);
+        const aiData = streamDoneData.data;
+        setMessages(prev => prev.map(m => m.id === streamMsgId ? {
+          id: aiData._id || streamMsgId,
+          role: 'system',
+          content: aiData.content || fullAiText,
+          timestamp: new Date(aiData.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isError: aiData.isFlagged,
+          emotion: streamDoneData.analysis?.primary_emotion || null,
+          sentiment: streamDoneData.analysis?.sentiment?.label || null,
+          crisis: streamDoneData.analysis?.crisis_flag || false
+        } : m));
       }
 
     } catch (err) {
-      const errorMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'system',
-        content: err.message || (language === 'hi' ? 'सहायक से जुड़ने में त्रुटि हुई।' : 'An error occurred while connecting to the assistant.'),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isError: true
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      console.error('[Chatbot] Stream send error:', err);
+      setSystemError('Failed to send message.');
     } finally {
       setIsTyping(false);
+      sendingRef.current = false;
       if (inputRef.current) inputRef.current.focus();
     }
   };

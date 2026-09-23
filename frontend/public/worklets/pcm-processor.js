@@ -6,7 +6,7 @@
 class PCMProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.bufferSize = 2048;
+    this.bufferSize = 1024;
     this.buffer = new Float32Array(this.bufferSize);
     this.index = 0;
   }
@@ -28,4 +28,10 @@ class PCMProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('pcm-processor', PCMProcessor);
+if (typeof registerProcessor === 'function') {
+  try {
+    registerProcessor('pcm-processor', PCMProcessor);
+  } catch (e) {
+    // Already registered in this scope
+  }
+}

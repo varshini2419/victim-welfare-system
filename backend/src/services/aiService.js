@@ -193,6 +193,30 @@ const buildSystemPrompt = (legalEntries) => {
   return `${AI_SYSTEM_PROMPT}\n\nLEGAL CONTEXT (the ONLY provisions you may reference):\n${legalBlock}`;
 };
 
+// ─────────────────────────────────────────────────────────────
+// 3b. FAST CONVERSATIONAL STREAM PROMPT (Direct plain spoken text, no JSON)
+// ─────────────────────────────────────────────────────────────
+const FAST_CONVERSATIONAL_SYSTEM_PROMPT = `You are AAROHAN, a compassionate, warm, and legally grounded conversational counselor and companion for victims and individuals in distress in India.
+
+Guidelines:
+1. Speak in a natural, empathetic, calm, and reassuring tone as if in a live spoken conversation.
+2. Respond in the SAME language as the user's message (e.g., English, Hindi, Telugu, Tamil, Kannada, Malayalam, Marathi, Bengali, Gujarati).
+3. Keep the response direct, clear, and concise (2-3 short sentences, under 60 words). Avoid formulaic filler, robotic disclaimers, or excessive introductory greetings.
+4. If legal rights or support provisions in India apply, mention them simply and accurately.
+5. If immediate danger or self-harm is mentioned, provide calm reassurance and advise calling 112 or Tele-MANAS (14416).
+6. Output ONLY your spoken response text directly. Never output JSON, markdown, asterisks, bullet points, or metadata.`;
+
+const buildFastConversationalPrompt = (legalEntries) => {
+  if (!legalEntries || legalEntries.length === 0) {
+    return FAST_CONVERSATIONAL_SYSTEM_PROMPT;
+  }
+  const legalBlock = legalEntries
+    .map((l, i) => `[${i + 1}] ${l.title} (${l.citation}): ${l.text}`)
+    .join('\n');
+  return `${FAST_CONVERSATIONAL_SYSTEM_PROMPT}\n\nLEGAL CONTEXT (reference ONLY if directly relevant to the victim's situation):\n${legalBlock}`;
+};
+
+
 const analyzeAndRespond = async (userText, conversationHistory = [], language = 'en') => {
   console.log(`\n[aiService] --- NEW MESSAGE RECEIVED ---`);
   console.log(`[aiService] Raw input text: "${userText}"`);
@@ -263,8 +287,9 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
   };
 
   try {
+    const aiTimeoutMs = parseInt(process.env.AI_TIMEOUT_MS) || 6000;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const timeout = setTimeout(() => controller.abort(), aiTimeoutMs);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -329,6 +354,416 @@ const analyzeAndRespond = async (userText, conversationHistory = [], language = 
       console.error('[aiService] API call failed:', error.message);
     }
     return getSmartFallback(userText, language);
+  }
+};
+
+const streamAnalysisAndRespond = async (userText, conversationHistory = [], language = 'en', onChunk = () => {}) => {
+  console.log(`\n[aiService-Stream] --- NEW STREAMING MESSAGE ---`);
+  console.log(`[aiService-Stream] Raw input text: "${userText}"`);
+
+  let apiKey = process.env.AI_API_KEY || process.env.AI_PROVIDER_API_KEY || process.env.GROK_API_KEY;
+  if (apiKey === 'your_api_key_here') {
+    apiKey = process.env.GROK_API_KEY;
+  }
+
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('[aiService-Stream] No AI_API_KEY set — using smart fallback');
+    const fallback = getSmartFallback(userText, language);
+    onChunk(fallback.reply);
+    return fallback;
+  }
+
+  let modelName = process.env.AI_MODEL || process.env.AI_MODEL_NAME || process.env.GROK_MODEL || 'gpt-4o-mini';
+  let url = process.env.AI_BASE_URL || process.env.AI_SERVICE_URL;
+
+  if (!url) {
+    if (modelName.toLowerCase().includes('grok') || (apiKey && apiKey.startsWith('xai-'))) {
+      url = 'https://api.x.ai/v1/chat/completions';
+    } else {
+      url = 'https://api.openai.com/v1/chat/completions';
+    }
+  } else {
+    url = url.trim();
+    if (!url.endsWith('/chat/completions')) {
+      url = url.endsWith('/') ? url + 'chat/completions' : url + '/chat/completions';
+    }
+  }
+
+  let contextText = '';
+  if (conversationHistory.length > 0) {
+    const recentHistory = conversationHistory.slice(-4);
+    contextText = '\n\nRecent conversation context:\n' +
+      recentHistory.map(m => `${m.role === 'user' ? 'Victim' : 'AAROHAN'}: ${m.content}`).join('\n');
+  }
+
+  const userPrompt = `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`;
+
+  const legalEntries = retrieveLegalContext(
+    userText,
+    conversationHistory.slice(-2).map(m => m.content)
+  );
+
+  const requestBody = {
+    model: modelName,
+    messages: [
+      { role: 'system', content: buildSystemPrompt(legalEntries) },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: 0.6,
+    max_tokens: 300,
+    stream: true,
+    response_format: { type: "json_object" }
+  };
+
+  try {
+    const aiTimeoutMs = parseInt(process.env.AI_TIMEOUT_MS) || 20000;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), aiTimeoutMs);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      console.error(`[aiService-Stream] API EXCEPTION: ${response.status} - ${errBody}`);
+      const fallback = getSmartFallback(userText, language);
+      onChunk(fallback.reply);
+      return fallback;
+    }
+
+    let rawAccumulatedText = '';
+    let replyTextEmitted = '';
+    let phraseBuffer = '';
+
+    const emitPhraseIfNeeded = (force = false) => {
+      if (force) {
+        const remaining = phraseBuffer.trim();
+        if (remaining) {
+          onChunk(remaining);
+          phraseBuffer = '';
+        }
+        return;
+      }
+
+      while (phraseBuffer.length > 0) {
+        const match = phraseBuffer.match(/^(.*?[.!?\n।]+)(\s+|$)/s);
+        if (match) {
+          const phraseToEmit = match[1].trim();
+          phraseBuffer = phraseBuffer.slice(match[0].length);
+          if (phraseToEmit) {
+            onChunk(phraseToEmit);
+          }
+        } else if (phraseBuffer.length > 50) {
+          const lastSpace = phraseBuffer.lastIndexOf(' ');
+          if (lastSpace > 15) {
+            const phraseToEmit = phraseBuffer.slice(0, lastSpace).trim();
+            phraseBuffer = phraseBuffer.slice(lastSpace).trim();
+            if (phraseToEmit) {
+              onChunk(phraseToEmit);
+            }
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+    };
+
+    const processLine = (line) => {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) return;
+      const dataStr = trimmed.slice(5).trim();
+      if (dataStr === '[DONE]') return;
+      try {
+        const parsed = JSON.parse(dataStr);
+        const delta = parsed?.choices?.[0]?.delta?.content || '';
+        if (delta) {
+          rawAccumulatedText += delta;
+          const replyMatch = rawAccumulatedText.match(/"reply"\s*:\s*"/);
+          if (replyMatch) {
+            const startIndex = replyMatch.index + replyMatch[0].length;
+            let currentReply = '';
+            let escaped = false;
+            for (let i = startIndex; i < rawAccumulatedText.length; i++) {
+              const char = rawAccumulatedText[i];
+              if (escaped) {
+                if (char === 'n') currentReply += '\n';
+                else if (char === 'r') currentReply += '\r';
+                else if (char === 't') currentReply += '\t';
+                else currentReply += char;
+                escaped = false;
+              } else if (char === '\\') {
+                escaped = true;
+              } else if (char === '"') {
+                break;
+              } else {
+                currentReply += char;
+              }
+            }
+
+            if (currentReply.length > replyTextEmitted.length) {
+              const newChars = currentReply.slice(replyTextEmitted.length);
+              replyTextEmitted = currentReply;
+              phraseBuffer += newChars;
+              emitPhraseIfNeeded(false);
+            }
+          }
+        }
+      } catch (_) {}
+    };
+
+    if (response.body.getReader) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let lineBuf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        lineBuf += decoder.decode(value, { stream: true });
+        const lines = lineBuf.split('\n');
+        lineBuf = lines.pop();
+        for (const l of lines) processLine(l);
+      }
+      if (lineBuf) processLine(lineBuf);
+    } else if (response.body[Symbol.asyncIterator]) {
+      let lineBuf = '';
+      for await (const chunk of response.body) {
+        lineBuf += chunk.toString('utf-8');
+        const lines = lineBuf.split('\n');
+        lineBuf = lines.pop();
+        for (const l of lines) processLine(l);
+      }
+      if (lineBuf) processLine(lineBuf);
+    }
+
+    emitPhraseIfNeeded(true);
+
+    let cleanText = rawAccumulatedText.trim();
+    if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    }
+    const firstBrace = cleanText.indexOf('{');
+    const lastBrace = cleanText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+    }
+
+    try {
+      const result = JSON.parse(cleanText);
+      const finalResponse = {
+        language_detected: result.language_detected || language,
+        sentiment: result.sentiment || { label: 'neutral', score: 0.5 },
+        emotions: Array.isArray(result.emotions) ? result.emotions : [{ label: 'neutral', score: 1.0 }],
+        distress_score: typeof result.distress_score === 'number' ? Math.min(100, Math.max(0, result.distress_score)) : 20,
+        crisis_flag: !!result.crisis_flag,
+        reply: result.reply || replyTextEmitted || getSmartFallback(userText, language).reply,
+        source: 'api_stream'
+      };
+      console.log(`[aiService-Stream] Stream complete. Reply:\n${finalResponse.reply}`);
+      return finalResponse;
+    } catch (parseErr) {
+      console.warn('[aiService-Stream] Parsing full JSON failed, using extracted reply:', replyTextEmitted);
+      const fallback = getSmartFallback(userText, language);
+      if (replyTextEmitted.trim()) {
+        fallback.reply = replyTextEmitted.trim();
+        fallback.source = 'api_stream_partial';
+      }
+      return fallback;
+    }
+  } catch (error) {
+    console.error('[aiService-Stream] Stream request failed:', error.message);
+    const fallback = getSmartFallback(userText, language);
+    onChunk(fallback.reply);
+    return fallback;
+  }
+};
+
+const fastConversationalStream = async (userText, conversationHistory = [], language = 'en', onChunk = () => {}) => {
+  console.log(`\n[aiService-FastStream] --- NEW FAST CONVERSATIONAL STREAM ---`);
+  console.log(`[aiService-FastStream] Input text: "${userText}" (lang: ${language})`);
+
+  let apiKey = process.env.AI_API_KEY || process.env.AI_PROVIDER_API_KEY || process.env.GROK_API_KEY;
+  if (apiKey === 'your_api_key_here') {
+    apiKey = process.env.GROK_API_KEY;
+  }
+
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('[aiService-FastStream] No AI_API_KEY set — using smart fallback');
+    const fallback = getSmartFallback(userText, language);
+    onChunk(fallback.reply);
+    return { reply: fallback.reply, source: 'fallback' };
+  }
+
+  let modelName = process.env.AI_MODEL || process.env.AI_MODEL_NAME || process.env.GROK_MODEL || 'gpt-4o-mini';
+  let url = process.env.AI_BASE_URL || process.env.AI_SERVICE_URL;
+
+  if (!url) {
+    if (modelName.toLowerCase().includes('grok') || (apiKey && apiKey.startsWith('xai-'))) {
+      url = 'https://api.x.ai/v1/chat/completions';
+    } else {
+      url = 'https://api.openai.com/v1/chat/completions';
+    }
+  } else {
+    url = url.trim();
+    if (!url.endsWith('/chat/completions')) {
+      url = url.endsWith('/') ? url + 'chat/completions' : url + '/chat/completions';
+    }
+  }
+
+  let contextText = '';
+  if (conversationHistory.length > 0) {
+    const recentHistory = conversationHistory.slice(-4);
+    contextText = '\n\nRecent conversation context:\n' +
+      recentHistory.map(m => `${m.role === 'user' ? 'Victim' : 'AAROHAN'}: ${m.content}`).join('\n');
+  }
+
+  const userPrompt = `${contextText}\n\nVictim's latest message: "${userText}"\n\nUser's preferred language: ${language}`;
+
+  const legalEntries = retrieveLegalContext(
+    userText,
+    conversationHistory.slice(-2).map(m => m.content)
+  );
+
+  const requestBody = {
+    model: modelName,
+    messages: [
+      { role: 'system', content: buildFastConversationalPrompt(legalEntries) },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: 0.6,
+    max_tokens: 220,
+    stream: true
+  };
+
+  try {
+    const aiTimeoutMs = parseInt(process.env.AI_TIMEOUT_MS) || 15000;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), aiTimeoutMs);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      console.error(`[aiService-FastStream] API error: ${response.status} - ${errBody}`);
+      const fallback = getSmartFallback(userText, language);
+      onChunk(fallback.reply);
+      return { reply: fallback.reply, source: 'fallback' };
+    }
+
+    let fullReply = '';
+    let phraseBuffer = '';
+
+    const emitPhraseIfNeeded = (force = false) => {
+      if (force) {
+        const remaining = phraseBuffer.trim();
+        if (remaining) {
+          onChunk(remaining);
+          phraseBuffer = '';
+        }
+        return;
+      }
+
+      while (phraseBuffer.length > 0) {
+        const match = phraseBuffer.match(/^(.*?[.!?\n।]+)(\s+|$)/s);
+        if (match) {
+          const phraseToEmit = match[1].trim();
+          phraseBuffer = phraseBuffer.slice(match[0].length);
+          if (phraseToEmit) {
+            onChunk(phraseToEmit);
+          }
+        } else if (phraseBuffer.length > 40) {
+          const lastSpace = phraseBuffer.lastIndexOf(' ');
+          if (lastSpace > 10) {
+            const phraseToEmit = phraseBuffer.slice(0, lastSpace).trim();
+            phraseBuffer = phraseBuffer.slice(lastSpace).trim();
+            if (phraseToEmit) {
+              onChunk(phraseToEmit);
+            }
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+    };
+
+    const processLine = (line) => {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) return;
+      const dataStr = trimmed.slice(5).trim();
+      if (dataStr === '[DONE]') return;
+      try {
+        const parsed = JSON.parse(dataStr);
+        const delta = parsed?.choices?.[0]?.delta?.content || '';
+        if (delta) {
+          fullReply += delta;
+          phraseBuffer += delta;
+          emitPhraseIfNeeded(false);
+        }
+      } catch (_) {}
+    };
+
+    if (response.body.getReader) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let lineBuf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        lineBuf += decoder.decode(value, { stream: true });
+        const lines = lineBuf.split('\n');
+        lineBuf = lines.pop();
+        for (const l of lines) processLine(l);
+      }
+      if (lineBuf) processLine(lineBuf);
+    } else if (response.body[Symbol.asyncIterator]) {
+      let lineBuf = '';
+      for await (const chunk of response.body) {
+        lineBuf += chunk.toString('utf-8');
+        const lines = lineBuf.split('\n');
+        lineBuf = lines.pop();
+        for (const l of lines) processLine(l);
+      }
+      if (lineBuf) processLine(lineBuf);
+    }
+
+    emitPhraseIfNeeded(true);
+
+    const cleanReply = fullReply.trim();
+    if (!cleanReply) {
+      const fallback = getSmartFallback(userText, language);
+      onChunk(fallback.reply);
+      return { reply: fallback.reply, source: 'fallback' };
+    }
+
+    console.log(`[aiService-FastStream] Stream complete. Length: ${cleanReply.length} chars.`);
+    return { reply: cleanReply, source: 'api_fast_stream' };
+  } catch (error) {
+    console.error('[aiService-FastStream] Stream error:', error.message);
+    const fallback = getSmartFallback(userText, language);
+    onChunk(fallback.reply);
+    return { reply: fallback.reply, source: 'fallback' };
   }
 };
 
@@ -532,8 +967,11 @@ const generatePatientSummary = async (messagesText) => {
 // ─────────────────────────────────────────────────────────────
 module.exports = {
   analyzeAndRespond,
+  streamAnalysisAndRespond,
+  fastConversationalStream,
   getKeywordCrisisFlag,
   getSafetyMessage,
   getSmartFallback,
   generatePatientSummary
 };
+

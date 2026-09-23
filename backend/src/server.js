@@ -1,7 +1,9 @@
 require('dotenv').config();
+const http = require('http');
 const app = require('./app');
 const { connectDB } = require('./config/database');
 const { getJwtSecret } = require('./utils/jwt');
+const { setupVoiceRealtime } = require('./routes/voiceRealtimeRoutes');
 
 const PORT = process.env.PORT || 5000;
 
@@ -17,7 +19,10 @@ const startServer = async () => {
       console.log('[Server] Seeder finished.');
     }
 
-    app.listen(PORT, '0.0.0.0', () => {
+    const server = http.createServer(app);
+    setupVoiceRealtime(server);
+
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
     });
   } catch (error) {

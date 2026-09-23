@@ -229,6 +229,24 @@ export default function FloatingChatboard() {
     }
   }, [messages, isOpen, loading]);
 
+  const speechTranscriptRef = useRef('');
+  const cachedVoicesRef = useRef([]);
+
+  // Pre-warm SpeechSynthesis Voices to avoid TTS lookup delay
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const updateVoices = () => {
+      cachedVoicesRef.current = window.speechSynthesis.getVoices();
+    };
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
   // Setup Web Speech Recognition for Audio Intake (STT)
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -236,19 +254,36 @@ export default function FloatingChatboard() {
       try {
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.lang = selectedLang;
 
         recognition.onresult = (event) => {
-          const transcript = event.results?.[0]?.[0]?.transcript;
-          if (transcript) {
-            setInput((prev) => (prev ? prev + ' ' + transcript : transcript));
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
           }
-          setIsListening(false);
+          const transcript = finalTranscript || event.results?.[0]?.[0]?.transcript || '';
+          if (transcript.trim()) {
+            speechTranscriptRef.current = transcript.trim();
+            setInput(transcript.trim());
+          }
         };
 
-        recognition.onerror = () => setIsListening(false);
-        recognition.onend = () => setIsListening(false);
+        recognition.onerror = () => {
+          setIsListening(false);
+          speechTranscriptRef.current = '';
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+          if (speechTranscriptRef.current) {
+            const voiceText = speechTranscriptRef.current;
+            speechTranscriptRef.current = '';
+            handleSend(voiceText);
+          }
+        };
 
         recognitionRef.current = recognition;
       } catch (_) {}
@@ -265,6 +300,7 @@ export default function FloatingChatboard() {
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
+      speechTranscriptRef.current = '';
       recognitionRef.current.lang = selectedLang;
       try {
         recognitionRef.current.start();
@@ -276,30 +312,85 @@ export default function FloatingChatboard() {
     }
   };
 
-  // Text-to-Speech (TTS) Audio Output
-  const speakText = (text, msgId = null) => {
+  const activeUtterancesRef = useRef([]);
+
+  // Pre-warm SpeechSynthesis Voices to avoid TTS lookup delay
+  useEffect(() => {
     if (!('speechSynthesis' in window)) return;
+    const updateVoices = () => {
+      cachedVoicesRef.current = window.speechSynthesis.getVoices();
+    };
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+        window.speechSynthesis.cancel();
+      }
+      activeUtterancesRef.current = [];
+    };
+  }, []);
 
-    window.speechSynthesis.cancel();
+  // Text-to-Speech (TTS) Audio Output with stable GC ref lifetime and sentence queuing
+  const speakText = (text, msgId = null) => {
+    if (!('speechSynthesis' in window) || !text) return;
 
+    // Explicit toggle stop if user clicks the currently speaking message button
     if (speakingMsgId === msgId && msgId !== null) {
+      window.speechSynthesis.cancel();
+      activeUtterancesRef.current = [];
       setSpeakingMsgId(null);
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = selectedLang;
-    utterance.rate = 0.95;
+    // Cancel ongoing speech only when starting a brand new response turn
+    window.speechSynthesis.cancel();
+    activeUtterancesRef.current = [];
 
-    const voices = window.speechSynthesis.getVoices();
-    const langVoice = voices.find(v => v.lang.startsWith(selectedLang.split('-')[0]));
-    if (langVoice) utterance.voice = langVoice;
+    const cleanText = text.trim();
+    const sentenceMatches = cleanText.match(/[^.!?\n]+[.!?\n]+/g);
+    const chunks = (sentenceMatches && sentenceMatches.length > 0)
+      ? sentenceMatches.map(s => s.trim()).filter(Boolean)
+      : [cleanText];
 
-    utterance.onstart = () => { if (msgId) setSpeakingMsgId(msgId); };
-    utterance.onend = () => setSpeakingMsgId(null);
-    utterance.onerror = () => setSpeakingMsgId(null);
+    const voices = cachedVoicesRef.current.length > 0 ? cachedVoicesRef.current : window.speechSynthesis.getVoices();
+    const langPrefix = selectedLang.split('-')[0];
+    const langVoice = voices.find(v => v.lang && v.lang.startsWith(langPrefix));
 
-    window.speechSynthesis.speak(utterance);
+    if (import.meta.env.DEV) {
+      console.log(`[TTS-Diagnostic] Queueing ${chunks.length} sentence chunk(s) for floating message: ${msgId || 'auto'}`);
+    }
+
+    let remainingChunks = chunks.length;
+
+    chunks.forEach((chunkText, idx) => {
+      const utterance = new SpeechSynthesisUtterance(chunkText);
+      utterance.lang = selectedLang;
+      utterance.rate = 1.0;
+      if (langVoice) utterance.voice = langVoice;
+
+      // Keep strong reference in React Ref to prevent V8 Garbage Collection mid-speech
+      activeUtterancesRef.current.push(utterance);
+
+      if (idx === 0) {
+        utterance.onstart = () => {
+          if (msgId) setSpeakingMsgId(msgId);
+        };
+      }
+
+      const handleChunkFinish = () => {
+        activeUtterancesRef.current = activeUtterancesRef.current.filter(u => u !== utterance);
+        remainingChunks -= 1;
+        if (remainingChunks <= 0) {
+          setSpeakingMsgId(null);
+        }
+      };
+
+      utterance.onend = handleChunkFinish;
+      utterance.onerror = () => handleChunkFinish();
+
+      window.speechSynthesis.speak(utterance);
+    });
   };
 
   const handleSend = async (textToSend) => {

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import GeminiLiveVoice from './GeminiLiveVoice';
+import { requestSpeech, cancelAllSpeech, isLiveVoiceActive } from '../../utils/audioAuthority';
 
 const LANGUAGES = [
   { code: 'en-US', langKey: 'en', label: 'English' },
@@ -325,7 +326,7 @@ export default function FloatingChatboard() {
     return () => {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = null;
-        window.speechSynthesis.cancel();
+        cancelAllSpeech('floating_unmount');
       }
       activeUtterancesRef.current = [];
     };
@@ -333,18 +334,18 @@ export default function FloatingChatboard() {
 
   // Text-to-Speech (TTS) Audio Output with stable GC ref lifetime and sentence queuing
   const speakText = (text, msgId = null) => {
-    if (!('speechSynthesis' in window) || !text) return;
+    if (!('speechSynthesis' in window) || !text || isLiveVoiceActive()) return;
 
     // Explicit toggle stop if user clicks the currently speaking message button
     if (speakingMsgId === msgId && msgId !== null) {
-      window.speechSynthesis.cancel();
+      cancelAllSpeech('toggle_stop');
       activeUtterancesRef.current = [];
       setSpeakingMsgId(null);
       return;
     }
 
     // Cancel ongoing speech only when starting a brand new response turn
-    window.speechSynthesis.cancel();
+    cancelAllSpeech('new_turn');
     activeUtterancesRef.current = [];
 
     const cleanText = text.trim();
@@ -389,7 +390,7 @@ export default function FloatingChatboard() {
       utterance.onend = handleChunkFinish;
       utterance.onerror = () => handleChunkFinish();
 
-      window.speechSynthesis.speak(utterance);
+      requestSpeech(utterance, { source: 'FloatingChatboard', id: msgId });
     });
   };
 

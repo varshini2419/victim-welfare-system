@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage, LanguageToggle } from '../../context/LanguageContext';
 import GeminiLiveVoice from '../../components/common/GeminiLiveVoice';
+import { requestSpeech, cancelAllSpeech, isLiveVoiceActive } from '../../utils/audioAuthority';
 import './Chatbot.css';
 
 const LANGUAGES = [
@@ -235,7 +236,7 @@ export default function Chatbot() {
     return () => {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = null;
-        window.speechSynthesis.cancel();
+        cancelAllSpeech('chatbot_unmount');
       }
       activeUtterancesRef.current = [];
     };
@@ -243,13 +244,13 @@ export default function Chatbot() {
 
   // Text-to-Speech (TTS) Audio Output with stable GC ref lifetime and sentence queuing
   const speakText = (text, msgId = null, isAppendStream = false, t0 = null) => {
-    if (!('speechSynthesis' in window) || !text) {
+    if (!('speechSynthesis' in window) || !text || isLiveVoiceActive()) {
       return;
     }
 
     // Explicit toggle stop if user clicks the currently speaking message button
     if (speakingMsgId === msgId && msgId !== null && !isAppendStream) {
-      window.speechSynthesis.cancel();
+      cancelAllSpeech('toggle_stop');
       activeUtterancesRef.current = [];
       setSpeakingMsgId(null);
       return;
@@ -257,7 +258,7 @@ export default function Chatbot() {
 
     // Cancel ongoing speech only when starting a brand new response turn (not appending stream chunks)
     if (!isAppendStream) {
-      window.speechSynthesis.cancel();
+      cancelAllSpeech('new_turn');
       activeUtterancesRef.current = [];
     }
 
@@ -319,7 +320,7 @@ export default function Chatbot() {
         handleChunkFinish();
       };
 
-      window.speechSynthesis.speak(utterance);
+      requestSpeech(utterance, { source: 'Chatbot', id: msgId });
     });
   };
 

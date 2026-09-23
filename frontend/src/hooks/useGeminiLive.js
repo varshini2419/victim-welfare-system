@@ -44,6 +44,7 @@ const MAX_RECONNECT_ATTEMPTS = 4;
 // Playback jitter buffer: chunks are scheduled at least this far ahead of
 // "now" so small network hiccups don't cause audible gaps. Adds ~100ms to
 // the very first sound of a response, nothing to subsequent chunks.
+// Baseline: 0.10s (100ms) - Safe, verified jitter buffer.
 const PLAYBACK_PREBUFFER_S = 0.10;
 
 export default function useGeminiLive(apiKey, customInstruction = "", language = "en-IN") {
@@ -83,15 +84,28 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
   const userSpeechTimerRef = useRef(null);
   const lastMeaningfulSpeechRef = useRef(0);
 
-  // Telemetry ref
-  const diagRef = useRef({
-    turn: 1,
-    speechStart: null,
-    speechEnd: null,
-    firstAudioReceived: null,
-    firstAudioScheduled: null,
-    isActiveTurn: false,
+  // Phase 3.1 & 3.2: Structured Non-blocking Telemetry & Memory Optimization
+  const metricsRef = useRef({
+    wsConnectStart: null,
+    wsOpenTime: null,
+    greetingSentTime: null,
+    greetingFirstAudioTime: null,
+    bargeInSpeechTime: null,
+    turnCount: 0,
+    currentTurn: {
+      id: 0,
+      t0_speechStart: null,
+      t1_speechEnd: null,
+      t2_firstAudioReceived: null,
+      t3_firstAudioScheduled: null,
+      t4_estimatedPlayStart: null,
+      chunkArrivalTimes: [],
+      chunkCount: 0,
+    }
   });
+
+  // Preallocated buffer for PCM encoding to eliminate per-frame GC pressure
+  const inputInt16Ref = useRef(new Int16Array(1024));
 
   const base64Encode = (bytes) => {
     const len = bytes.byteLength;
@@ -115,13 +129,16 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
 
   const createPcmBlob = (data) => {
     const l = data.length;
-    const int16 = new Int16Array(l);
+    if (!inputInt16Ref.current || inputInt16Ref.current.length !== l) {
+      inputInt16Ref.current = new Int16Array(l);
+    }
+    const int16 = inputInt16Ref.current;
     for (let i = 0; i < l; i++) {
       const s = Math.max(-1, Math.min(1, data[i]));
       int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
     }
     return {
-      data: base64Encode(new Uint8Array(int16.buffer)),
+      data: base64Encode(new Uint8Array(int16.buffer, int16.byteOffset, int16.byteLength)),
       mimeType: 'audio/pcm;rate=16000',
     };
   };
@@ -198,6 +215,8 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
         if (activeAudioNodesRef.current.length === 0) {
           setIsSpeaking(false);
           isSpeakingRef.current = false;
+          isNewTurnRef.current = true;
+          nextPlayTimeRef.current = 0;
           if (voiceStateRef.current === 'AI_SPEAKING' || voiceStateRef.current === 'INTERRUPTED') {
             voiceStateRef.current = 'CONNECTED_IDLE';
             resetSilenceTimer();
@@ -205,43 +224,54 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
         }
       };
 
-      activeAudioNodesRef.current.push(source);
       setIsSpeaking(true);
       isSpeakingRef.current = true;
       voiceStateRef.current = 'AI_SPEAKING';
 
       const now = ctx.currentTime;
-      if (isNewTurnRef.current || nextPlayTimeRef.current < now) {
+      const isQueueEmpty = activeAudioNodesRef.current.length === 0;
+      const shouldReanchor = isNewTurnRef.current || 
+                             nextPlayTimeRef.current < now || 
+                             nextPlayTimeRef.current === 0 || 
+                             isQueueEmpty;
+
+      if (shouldReanchor) {
         nextPlayTimeRef.current = now + PLAYBACK_PREBUFFER_S;
         isNewTurnRef.current = false;
       }
-      console.log('[AROHAN_LIVE] AUDIO_SCHEDULED', 'startAt=' + nextPlayTimeRef.current.toFixed(3), 'now=' + now.toFixed(3), 'duration=' + buffer.duration.toFixed(3));
-      source.start(nextPlayTimeRef.current);
+
+      const scheduledStart = nextPlayTimeRef.current;
+      const leadMs = Math.round((scheduledStart - now) * 1000);
+
+      console.log('[AROHAN_LIVE] AUDIO_SCHEDULED', 'startAt=' + scheduledStart.toFixed(3), 'now=' + now.toFixed(3), 'lead=' + leadMs + 'ms', 'duration=' + buffer.duration.toFixed(3));
+      console.log(`[VOICE_SCHEDULER] lead=${leadMs}ms chunk=${Math.round(buffer.duration * 1000)}ms now=${now.toFixed(3)} scheduled=${scheduledStart.toFixed(3)}`);
+
+      source.start(scheduledStart);
       console.log('[AROHAN_LIVE] AUDIO_STARTED');
-      nextPlayTimeRef.current += buffer.duration;
+      nextPlayTimeRef.current = scheduledStart + buffer.duration;
+      activeAudioNodesRef.current.push(source);
 
-      // Telemetry log for first scheduled chunk of turn
-      if (diagRef.current.isActiveTurn && diagRef.current.firstAudioReceived && !diagRef.current.firstAudioScheduled) {
-        diagRef.current.firstAudioScheduled = performance.now();
-        const d = diagRef.current;
-        const speechDur = d.speechEnd && d.speechStart ? (d.speechEnd - d.speechStart) : 0;
-        const ue_to_fa = d.speechEnd ? (d.firstAudioReceived - d.speechEnd) : 0;
-        const fa_to_sch = d.firstAudioScheduled - d.firstAudioReceived;
-        const total = d.speechEnd ? (d.firstAudioScheduled - d.speechEnd) : 0;
+      // Phase 3.1: Telemetry calculation for first scheduled chunk of turn
+      const cur = metricsRef.current.currentTurn;
+      if (cur.t2_firstAudioReceived && !cur.t3_firstAudioScheduled) {
+        cur.t3_firstAudioScheduled = performance.now();
+        const outputLatencySec = (ctx && typeof ctx.outputLatency === 'number') ? ctx.outputLatency : 0;
+        const delayToScheduled = Math.max(0, scheduledStart - now);
+        cur.t4_estimatedPlayStart = cur.t3_firstAudioScheduled + (delayToScheduled + outputLatencySec) * 1000;
 
-        console.log(`\n[VOICE_LATENCY] turn=${d.turn}`);
-        console.log(`user_speech_start=${d.speechStart ? d.speechStart.toFixed(0) : 'N/A'} ms`);
-        console.log(`user_speech_end=${d.speechEnd ? d.speechEnd.toFixed(0) : 'N/A'} ms (duration: ${speechDur.toFixed(0)} ms)`);
-        console.log(`first_audio_received=${d.firstAudioReceived.toFixed(0)} ms`);
-        console.log(`first_audio_scheduled=${d.firstAudioScheduled.toFixed(0)} ms`);
-        console.log(`total_turn_latency=${total.toFixed(0)} ms\n`);
+        const speechDur = cur.t1_speechEnd && cur.t0_speechStart ? (cur.t1_speechEnd - cur.t0_speechStart).toFixed(0) : '0';
+        const modelTurnaround = cur.t1_speechEnd ? (cur.t2_firstAudioReceived - cur.t1_speechEnd).toFixed(0) : '0';
+        const clientSched = (cur.t3_firstAudioScheduled - cur.t2_firstAudioReceived).toFixed(0);
+        const schedDelay = (cur.t4_estimatedPlayStart - cur.t3_firstAudioScheduled).toFixed(0);
+        const totalLatency = cur.t1_speechEnd ? (cur.t4_estimatedPlayStart - cur.t1_speechEnd).toFixed(0) : '0';
 
-        diagRef.current.isActiveTurn = false;
-        diagRef.current.turn += 1;
-        diagRef.current.speechStart = null;
-        diagRef.current.speechEnd = null;
-        diagRef.current.firstAudioReceived = null;
-        diagRef.current.firstAudioScheduled = null;
+        console.log(`\n[VOICE_METRICS] Turn #${cur.id} Latency Breakdown:`);
+        console.log(`  T0 (User Speech Start):         ${cur.t0_speechStart ? cur.t0_speechStart.toFixed(0) : 'N/A'} ms`);
+        console.log(`  T1 (User Speech End):           ${cur.t1_speechEnd ? cur.t1_speechEnd.toFixed(0) : 'N/A'} ms (Duration: ${speechDur} ms)`);
+        console.log(`  T2 (First Audio Received):      ${cur.t2_firstAudioReceived.toFixed(0)} ms (Model Turnaround: ${modelTurnaround} ms)`);
+        console.log(`  T3 (First Audio Scheduled):     ${cur.t3_firstAudioScheduled.toFixed(0)} ms (Client Sched: ${clientSched} ms)`);
+        console.log(`  T4 (Estimated Playback Start):  ${cur.t4_estimatedPlayStart.toFixed(0)} ms (Buffer Delay: ${schedDelay} ms)`);
+        console.log(`  Total Perceived Turn Latency:   ${totalLatency} ms\n`);
       }
     } catch (e) {
       console.error("[AROHAN_LIVE] ERROR in playPCMChunk:", e);
@@ -266,6 +296,7 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
     }
 
     try {
+      metricsRef.current.greetingSentTime = performance.now();
       activeSession.sendClientContent({
         turns: [{
           role: "user",
@@ -405,6 +436,7 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
     connectionIdRef.current = myConnectionId;
     shouldReconnectRef.current = true;
     voiceStateRef.current = 'CONNECTING';
+    metricsRef.current.wsConnectStart = performance.now();
 
     if (!isReconnect) {
       reconnectAttemptsRef.current = 0;
@@ -693,6 +725,9 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
         callbacks: {
           onopen: () => {
             if (connectionIdRef.current !== myConnectionId) return;
+            metricsRef.current.wsOpenTime = performance.now();
+            const connectDur = metricsRef.current.wsConnectStart ? (metricsRef.current.wsOpenTime - metricsRef.current.wsConnectStart).toFixed(0) : 'N/A';
+            console.log(`[VOICE_METRICS] WS_CONNECTED duration=${connectDur}ms`);
             console.log('[AROHAN_LIVE] WS_OPEN');
             console.log("Gemini Live connection established");
             setIsConnected(true);
@@ -759,12 +794,31 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
                     if (rms > 0.012) {
                       // User speaking detected
                       voiceStateRef.current = 'USER_SPEAKING';
+                      isNewTurnRef.current = true;
                       lastMeaningfulSpeechRef.current = performance.now();
 
                       const now = performance.now();
-                      if (!diagRef.current.speechStart) diagRef.current.speechStart = now;
-                      diagRef.current.speechEnd = now;
-                      diagRef.current.isActiveTurn = true;
+                      if (isSpeakingRef.current && !metricsRef.current.bargeInSpeechTime) {
+                        metricsRef.current.bargeInSpeechTime = now;
+                      }
+
+                      const cur = metricsRef.current.currentTurn;
+                      if (!cur.t0_speechStart || cur.t3_firstAudioScheduled) {
+                        // Start new turn metrics
+                        metricsRef.current.turnCount += 1;
+                        metricsRef.current.currentTurn = {
+                          id: metricsRef.current.turnCount,
+                          t0_speechStart: now,
+                          t1_speechEnd: now,
+                          t2_firstAudioReceived: null,
+                          t3_firstAudioScheduled: null,
+                          t4_estimatedPlayStart: null,
+                          chunkArrivalTimes: [],
+                          chunkCount: 0,
+                        };
+                      } else {
+                        cur.t1_speechEnd = now;
+                      }
 
                       // Cancel timers while user is speaking
                       if (silenceTimerRef.current) {
@@ -818,6 +872,11 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
 
             // Handle Interruption / Barge-in
             if (message.serverContent?.interrupted) {
+              const interruptedTime = performance.now();
+              const bargeTime = metricsRef.current.bargeInSpeechTime;
+              const bargeLatency = bargeTime ? (interruptedTime - bargeTime).toFixed(0) : 'N/A';
+              metricsRef.current.bargeInSpeechTime = null;
+              console.log(`[VOICE_METRICS] BARGE_IN_REACTION latency=${bargeLatency}ms`);
               console.log('[AROHAN_LIVE] INTERRUPTED');
               activeAudioNodesRef.current.forEach(node => {
                 try { node.stop(); } catch (e) {}
@@ -826,10 +885,7 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
               setIsSpeaking(false);
               isSpeakingRef.current = false;
               isNewTurnRef.current = true;
-
-              if (playbackContextRef.current) {
-                nextPlayTimeRef.current = playbackContextRef.current.currentTime;
-              }
+              nextPlayTimeRef.current = 0;
               voiceStateRef.current = 'INTERRUPTED';
             }
 
@@ -848,9 +904,22 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
                       clearTimeout(userSpeechTimerRef.current);
                       userSpeechTimerRef.current = null;
                     }
-                    if (diagRef.current.isActiveTurn && !diagRef.current.firstAudioReceived) {
-                      diagRef.current.firstAudioReceived = performance.now();
+
+                    const nowChunk = performance.now();
+                    // Track greeting response latency
+                    if (metricsRef.current.greetingSentTime && !metricsRef.current.greetingFirstAudioTime) {
+                      metricsRef.current.greetingFirstAudioTime = nowChunk;
+                      const greetingLatency = (metricsRef.current.greetingFirstAudioTime - metricsRef.current.greetingSentTime).toFixed(0);
+                      console.log(`[VOICE_METRICS] GREETING_RESPONSE latency=${greetingLatency}ms`);
                     }
+
+                    const cur = metricsRef.current.currentTurn;
+                    if (cur.t0_speechStart && !cur.t2_firstAudioReceived) {
+                      cur.t2_firstAudioReceived = nowChunk;
+                    }
+                    cur.chunkArrivalTimes.push(nowChunk);
+                    cur.chunkCount += 1;
+
                     playPCMChunk(pcmData);
                   }
                 } else if (part.functionCall) {
@@ -868,6 +937,19 @@ export default function useGeminiLive(apiKey, customInstruction = "", language =
             if (message.serverContent?.turnComplete) {
               console.log('[AROHAN_LIVE] TURN_COMPLETE');
               isNewTurnRef.current = true;
+
+              const cur = metricsRef.current.currentTurn;
+              if (cur.chunkArrivalTimes.length > 1) {
+                const intervals = [];
+                for (let i = 1; i < cur.chunkArrivalTimes.length; i++) {
+                  intervals.push(cur.chunkArrivalTimes[i] - cur.chunkArrivalTimes[i - 1]);
+                }
+                const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                const variance = intervals.reduce((a, b) => a + Math.pow(b - avgInterval, 2), 0) / intervals.length;
+                const stdDev = Math.sqrt(variance);
+                console.log(`[VOICE_METRICS] Turn #${cur.id} Stream Stats: chunks=${cur.chunkCount}, avgInterval=${avgInterval.toFixed(1)}ms, jitterStdDev=${stdDev.toFixed(1)}ms`);
+              }
+
               if (activeAudioNodesRef.current.length === 0) {
                 voiceStateRef.current = 'CONNECTED_IDLE';
                 setIsSpeaking(false);
